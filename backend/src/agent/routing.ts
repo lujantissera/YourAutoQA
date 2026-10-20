@@ -17,6 +17,19 @@ export function routeAfterRun(state: AgentStateType, config: AgentConfig): RunRo
   return 'classify';
 }
 
+// Por qué termina un job al agotar un límite (US-07.3, TS-02.4): es el motivo que verá el usuario.
+// Sigue el mismo orden que routeAfterRun (intentos antes que tokens), para que el motivo
+// coincida siempre con la causa real.
+export function limitReason(state: AgentStateType, config: AgentConfig): string | null {
+  if (state.attempt >= config.maxAttempts) {
+    return `Reached the maximum number of attempts (${config.maxAttempts}).`;
+  }
+  if (state.tokensUsed >= config.maxTokens) {
+    return `Reached the token limit (${config.maxTokens}).`;
+  }
+  return null;
+}
+
 // D-42: cada ronda de aclaración deja un mensaje del agente en `clarifications`, así que las
 // preguntas ya hechas se cuentan ahí, sin un contador aparte que pueda desincronizarse.
 function canAskMore(state: AgentStateType, config: AgentConfig): boolean {
