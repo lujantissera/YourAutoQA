@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { AgentConfig } from './config.js';
 import {
+  limitReason,
   routeAfterClassify,
   routeAfterFix,
   routeAfterRun,
@@ -164,5 +165,33 @@ describe('routeAfterClassify', () => {
   it('lanza un error si el fallo no fue clasificado (bug del programa)', () => {
     const state = makeState({ failureKind: null });
     expect(() => routeAfterClassify(state, config)).toThrow();
+  });
+});
+
+// TS-02.4 / US-07.3: cuando el job termina por un límite, el usuario debe saber CUÁL.
+describe('limitReason', () => {
+  it('explica que se agotaron los intentos, con el máximo configurado', () => {
+    const state = makeState({ attempt: 5 });
+    expect(limitReason(state, config)).toMatch(/maximum number of attempts \(5\)/i);
+  });
+
+  it('explica que se alcanzó el límite de tokens', () => {
+    const state = makeState({ attempt: 1, tokensUsed: 50_000 });
+    expect(limitReason(state, config)).toMatch(/token limit \(50000\)/i);
+  });
+
+  it('respeta un máximo de intentos distinto del por defecto', () => {
+    const state = makeState({ attempt: 2 });
+    expect(limitReason(state, { ...config, maxAttempts: 2 })).toMatch(/attempts \(2\)/i);
+  });
+
+  it('si se cumplen los dos límites, gana el de intentos (mismo orden que routeAfterRun)', () => {
+    const state = makeState({ attempt: 5, tokensUsed: 50_000 });
+    expect(limitReason(state, config)).toMatch(/attempts/i);
+  });
+
+  it('devuelve null si no se ha alcanzado ningún límite', () => {
+    const state = makeState({ attempt: 1, tokensUsed: 100 });
+    expect(limitReason(state, config)).toBeNull();
   });
 });

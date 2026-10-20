@@ -13,6 +13,7 @@ import {
 import { EMPTY_TEST_LOGS, extractRobotCode } from './robot-code.js';
 import type { AgentStateType } from './state.js';
 import { parseStoryCheck } from './story-check.js';
+import { limitReason } from './routing.js';
 
 // Dependencias que el grafo necesita del exterior: siempre puertos, nunca OpenAI/Docker directos.
 export interface AgentDeps {
@@ -181,7 +182,8 @@ export function createNodes({ llm, runner, config }: AgentDeps) {
     markFailed: (state: AgentStateType): StateUpdate => ({
       status: 'fail',
       failureReason:
-        state.failureReason ?? (state.question !== null ? CLARIFICATION_LIMIT_REASON : null),
+        state.failureReason ??
+        (state.question !== null ? CLARIFICATION_LIMIT_REASON : limitReason(state, config)),
       question: null,
     }),
   };

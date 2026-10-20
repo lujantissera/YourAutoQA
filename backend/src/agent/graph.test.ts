@@ -67,6 +67,7 @@ describe('agent graph', () => {
     const result = await graph.invoke(input, thread);
 
     expect(result.status).toBe('fail');
+    expect(result.failureReason).toMatch(/maximum number of attempts \(3\)/i);
     expect(runner.calls).toHaveLength(3);
   });
 
@@ -427,6 +428,7 @@ describe('agent graph', () => {
     const result = await graph.invoke(input, thread);
 
     expect(result.status).toBe('fail');
+    expect(result.failureReason).toMatch(/token limit \(200\)/i);
     expect(runner.calls).toHaveLength(2); // generar (150) + corregir (300 >= 200) -> fail
   });
 
