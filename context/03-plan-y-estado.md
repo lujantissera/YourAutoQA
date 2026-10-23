@@ -13,7 +13,7 @@
 | Pre | Requisitos, plan, `CLAUDE.md` y `context/` | — | ✅ hecho |
 | Pre | User Stories con criterios de aceptación (17 US en `06-user-stories.md`) | 1 | ✅ hecho (preguntas resueltas: D-21 a D-27) |
 | 0 | Setup del repo: monorepo, Husky + lint-staged + ESLint + Prettier, README, ramas | 0.5–1 | ✅ hecho |
-| 1 | Core del agente en LangGraph (sin UI ni Jira) contra el runner Docker | 2–3 | ⬜ |
+| 1 | Core del agente en LangGraph (sin UI ni Jira) contra el runner Docker | 2–3 | ✅ hecho (PR #5 y #6, 2026-10-17 a 2026-10-23; D-28 a D-43) |
 | 2 | Integración Jira vía MCP Atlassian + manejo 404/403 | 1 | ⬜ |
 | 3 | API + PostgreSQL (jobs, intentos, clarificaciones) + tests de integración | 2 | ⬜ |
 | 4 | Frontend: Creación, Control, chat de clarificación, Administración | 2–3 | ⬜ |
@@ -36,7 +36,11 @@ Al terminar la Fase 4 hay un walking skeleton usable desde el navegador: buen mo
 - Revisar las 5 vulnerabilidades de `npm audit` (solo tooling de lint) en la Fase 6.
 
 ## Siguiente acción
-1. **Fase 1 en curso** (US-05, US-06, US-07, US-10 y TS-01/TS-02). Diseño del grafo cerrado (D-28 a D-32). Orden de trabajo:
+**Fase 1 cerrada.** Siguiente: **Fase 2 mínima** (D-43, "Camino A adelgazado"): buscar una US de Jira por su ID con el MCP de Atlassian y mostrar un error claro si no existe o no hay permisos (US-03 y US-04), con un token de desarrollo fijo; el login por usuario es la Fase 5. Después, Fase 3 (API + PostgreSQL: jobs, intentos y tests guardados, lo que falta de US-05, US-07 y US-10) y Fase 4 (frontend, hito demostrable). Estado de cada historia en la matriz de `06-user-stories.md`. Pendiente de cierre: regenerar `grafo-agente.pdf`.
+
+Detalle de la Fase 1 (histórico):
+
+1. **Fase 1** (US-05, US-06, US-07, US-10 y TS-01/TS-02). Diseño del grafo cerrado (D-28 a D-32). Orden de trabajo:
    1. ✅ Estado + grafo con dobles (`FakeLlm`, `FakeRunner`) y tests Vitest de US-07 y US-10. 22 tests en verde (`npm test`). Diagrama en `context/diagramas/grafo-agente.{svg,pdf}`.
       - Pendiente de esta parte (a propósito): triage con LLM de salida estructurada (D-31, llega con el adaptador OpenAI) y limpiar/validar la respuesta del LLM (US-05.2/05.3).
    2. ✅ `rf-runner` en Docker. `DockerRunner` (`backend/src/runner/`) implementa `RunnerPort`; `buildDockerRunArgs` concentra las medidas de seguridad (usuario `pwuser`, `--memory`/`--cpus`/`--pids-limit`, sin variables de entorno, un solo volumen, nombre para `docker kill`). Tests: 31 unitarios (`npm test`) + 5 de integración contra Docker real (`npm run test:integration`, necesita Docker Desktop): PASS, FAIL con motivo, timeout con kill del contenedor, sin acceso a secretos y Chromium arrancando bajo los límites. D-34, D-35 y D-36 registradas.
