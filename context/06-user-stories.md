@@ -339,19 +339,32 @@ Las 17 historias cubren los 9 requisitos funcionales y los 8 no funcionales; la 
 | US-02 | Ver y usar solo lo que mi rol permite | RF-2 | Must | 5 | Pendiente |
 | US-03 | Buscar una US de Jira por su ID | RF-3 | Must | 2 | Pendiente |
 | US-04 | Error claro si la US no existe o sin permisos | RF-3 | Must | 2 | Pendiente |
-| US-05 | Generar un test `.robot` desde una US | RF-4 | Must | 1 | Pendiente |
-| US-06 | Ejecutar el test en un entorno aislado | RF-5, RNF-2 | Must | 1 | Pendiente |
-| US-07 | Corregir el test automáticamente si falla | RF-6, RNF-1, RNF-4 | Must | 1 | Pendiente |
+| US-05 | Generar un test `.robot` desde una US | RF-4 | Must | 1 | Parcial 2/6 |
+| US-06 | Ejecutar el test en un entorno aislado | RF-5, RNF-2 | Must | 1 | Parcial 6/6 |
+| US-07 | Corregir el test automáticamente si falla | RF-6, RNF-1, RNF-4 | Must | 1 | Parcial 5/7 |
 | US-08 | Ver el estado de mis jobs en tiempo real | RF-7, RNF-3 | Must | 3 y 4 | Pendiente |
 | US-09 | Ver el detalle de cada intento y sus logs | RF-7, RNF-4 | Should | 4 | Pendiente |
-| US-10 | El agente pregunta cuando falta información | RF-9, RNF-1 | Must | 1 | Pendiente |
-| US-11 | Responder por chat y continuar | RF-9, RF-7 | Must | 3 y 4 | Pendiente |
+| US-10 | El agente pregunta cuando falta información | RF-9, RNF-1 | Must | 1 | Parcial 6/7 |
+| US-11 | Responder por chat y continuar | RF-9, RF-7 | Must | 3 y 4 | Parcial 1/9 |
 | US-12 | Administrar usuarios, roles y límites | RF-2, RF-7, RNF-1, RNF-2, RNF-6 | Should | 4 y 5 | Pendiente |
 | US-13 | Reutilizar keywords y ejemplos (RAG) | RF-8 | Could | 8 | Pendiente |
-| TS-01 | Proteger frente a entradas no confiables | Seguridad (nuevo) | Must | 1 a 7 | Pendiente |
-| TS-02 | Controlar y medir el coste | RNF-1, RNF-5 | Should | 1 y 3 | Pendiente |
-| TS-03 | Impedir commits sin lint | RNF-8 | Must | 0 | Pendiente |
+| TS-01 | Proteger frente a entradas no confiables | Seguridad (nuevo) | Must | 1 a 7 | Parcial |
+| TS-02 | Controlar y medir el coste | RNF-1, RNF-5 | Should | 1 y 3 | Parcial 2/4 |
+| TS-03 | Impedir commits sin lint | RNF-8 | Must | 0 | Hecho |
 | TS-04 | Validar cada PR con CI | CI/CD (sección 5) | Should | 6 | Pendiente |
+
+### Cómo leer la columna Estado
+
+`Parcial n/m` significa que `n` de los `m` criterios de aceptación ya están cubiertos con tests; `Hecho` exige además cumplir toda la Definition of Done (incluido el CI de la PR, Fase 6), por eso ninguna historia de la Fase 1 está `Hecha` todavía. Revisión hecha al cerrar la Fase 1 (2026-10-23), criterio a criterio:
+
+- **US-05** (cubiertos 2 y 3): faltan 1 (job con id único), 5 (guardar cada test por job e intento) y 6 (tokens por llamada), que son persistencia (Fase 3), y el 4 (fallo de la API del LLM → job `fail`): el adaptador ya traduce los errores, pero convertirlos en estado de job es Fase 3.
+- **US-06** (cubiertos 1 a 6): solo falta el CI de la PR de la Definition of Done (Fase 6). Matiz del 1: los logs se recortan a 200.000 caracteres.
+- **US-07** (cubiertos 1, 2, 3, 6, 7): faltan 4 (guardar cada intento) y 5 (estado en tiempo real); hoy viven en memoria y pasan a Postgres en la Fase 3.
+- **US-10** (cubiertos 1, 2, 3, 4, 5, 7): falta el 6 (conservar el estado en pausa): hoy es `MemorySaver` y se pierde al reiniciar; pasa a Postgres en la Fase 3 (D-32).
+- **US-11** (cubierto el 3, reinicio del contador): el resto es API y chat (Fases 3 y 4).
+- **TS-01**: hay barrera en el prompt (datos entre etiquetas), pero sin una prueba adversarial real; el aislamiento del runner funciona, con el hueco de red de la decisión abierta de `04-decisiones.md`. Los criterios 3 a 5 son de fases posteriores.
+- **TS-02** (cubiertos 3 y 4): el consumo real medido está muy por debajo de la estimación (unos 600 a 5.000 tokens frente a 15.000-25.000, ver `03-plan-y-estado.md`), y al agotar el límite el job queda en `fail` con motivo. Faltan 1 y 2 (persistir y consultar el detalle por job, Fase 3).
+- **TS-03**: hecha en la Fase 0 (el pre-commit bloquea un `console.log`).
 
 ## Preguntas abiertas (resueltas; ver D-21 a D-27 en `04-decisiones.md`)
 
