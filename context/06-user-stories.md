@@ -79,7 +79,7 @@ Sin identidad y sin permisos no hay producto: esta épica cubre el login con Atl
 
 ## Épica 2 — Vinculación con Jira
 
-El agente solo puede generar un buen test si recibe una US real y completa. Esta épica cubre la entrada del sistema: buscar la US y manejar con claridad los casos en que no se puede obtener. Se implementa en la Fase 2 con el MCP oficial de Atlassian (Rovo).
+El agente solo puede generar un buen test si recibe una US real y completa. Esta épica cubre la entrada del sistema: buscar la US y manejar con claridad los casos en que no se puede obtener. Se implementa en la Fase 2 con la API REST de Jira y un token de desarrollo (el MCP oficial de Atlassian no funcionó con token de API; ver D-45).
 
 ### US-03 — Buscar una User Story de Jira por su ID
 
@@ -337,8 +337,8 @@ Las 17 historias cubren los 9 requisitos funcionales y los 8 no funcionales; la 
 | --- | --- | --- | --- | --- | --- |
 | US-01 | Iniciar sesión con Atlassian | RF-1, RNF-7 | Must | 5 | Pendiente |
 | US-02 | Ver y usar solo lo que mi rol permite | RF-2 | Must | 5 | Pendiente |
-| US-03 | Buscar una US de Jira por su ID | RF-3 | Must | 2 | Pendiente |
-| US-04 | Error claro si la US no existe o sin permisos | RF-3 | Must | 2 | Pendiente |
+| US-03 | Buscar una US de Jira por su ID | RF-3 | Must | 2 | Parcial 2/6 |
+| US-04 | Error claro si la US no existe o sin permisos | RF-3 | Must | 2 | Parcial 3/6 |
 | US-05 | Generar un test `.robot` desde una US | RF-4 | Must | 1 | Parcial 2/6 |
 | US-06 | Ejecutar el test en un entorno aislado | RF-5, RNF-2 | Must | 1 | Parcial 6/6 |
 | US-07 | Corregir el test automáticamente si falla | RF-6, RNF-1, RNF-4 | Must | 1 | Parcial 5/7 |
@@ -357,6 +357,8 @@ Las 17 historias cubren los 9 requisitos funcionales y los 8 no funcionales; la 
 
 `Parcial n/m` significa que `n` de los `m` criterios de aceptación ya están cubiertos con tests; `Hecho` exige además cumplir toda la Definition of Done (incluido el CI de la PR, Fase 6), por eso ninguna historia de la Fase 1 está `Hecha` todavía. Revisión hecha al cerrar la Fase 1 (2026-10-23), criterio a criterio:
 
+- **US-03** (Fase 2, 2026-11-04; cubiertos 1 y 4): el 1 lo cubren `RestJira`, `adfToText` y `splitAcceptanceCriteria`, con respuestas reales de Jira; el 4 lo cubre `parseIssueKey` (clave inválida rechazada sin llamar a Jira). Del 3 solo está la parte de datos (`acceptanceCriteria: null`): falta el aviso al usuario (Fases 3 y 4). Faltan el 2 y el 5 (interfaz, Fase 4) y el 6 (permisos del usuario autenticado, Fase 5; hoy la lectura usa el token de desarrollo). Campos leídos hoy: solo `summary` y `description`.
+- **US-04** (Fase 2, 2026-11-04; cubiertos 1, 2 y 6): 404 es `not_found`, 401/403 son `forbidden` y los mensajes no incluyen token, `cloudId` ni URL (hay un test). Matiz de D-45: Jira responde 404 también cuando no puedes ver la incidencia, así que en la práctica "no existe" y "sin permiso" llegan igual; `forbidden` queda para credenciales rechazadas o falta de permiso de la aplicación. Del 5 está el mapeo (5xx, 429, red y timeout son `unavailable`), pero falta registrarlo en el log del servidor (Fase 3). Faltan el 3 y el 4 (interfaz y API, Fases 3 y 4).
 - **US-05** (cubiertos 2 y 3): faltan 1 (job con id único), 5 (guardar cada test por job e intento) y 6 (tokens por llamada), que son persistencia (Fase 3), y el 4 (fallo de la API del LLM → job `fail`): el adaptador ya traduce los errores, pero convertirlos en estado de job es Fase 3.
 - **US-06** (cubiertos 1 a 6): solo falta el CI de la PR de la Definition of Done (Fase 6). Matiz del 1: los logs se recortan a 200.000 caracteres.
 - **US-07** (cubiertos 1, 2, 3, 6, 7): faltan 4 (guardar cada intento) y 5 (estado en tiempo real); hoy viven en memoria y pasan a Postgres en la Fase 3.
