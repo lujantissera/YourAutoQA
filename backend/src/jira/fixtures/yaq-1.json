@@ -1,0 +1,43 @@
+{
+  "key": "YAQ-1",
+  "fields": {
+    "summary": "Iniciar sesión con credenciales válidas",
+    "issuetype": { "name": "Historia" },
+    "status": { "name": "Tareas por hacer" },
+    "description": {
+      "type": "doc",
+      "version": 1,
+      "content": [
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "type": "text",
+              "text": "Como usuario registrado quiero iniciar sesión en la tienda web con el usuario standard_user y la contraseña secret_sauce para acceder al catálogo de productos."
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "content": [{ "type": "text", "text": "Criterios de aceptación:" }]
+        },
+        {
+          "type": "paragraph",
+          "content": [
+            { "type": "text", "text": "Dado un usuario que está en la página de inicio de sesión" },
+            { "type": "hardBreak" },
+            {
+              "type": "text",
+              "text": "Cuando introduce el usuario standard_user y la contraseña secret_sauce y pulsa el botón de login"
+            },
+            { "type": "hardBreak" },
+            {
+              "type": "text",
+              "text": "Entonces se muestra la página de productos con el título \"Products\""
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

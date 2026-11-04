@@ -14,7 +14,7 @@
 | Pre | User Stories con criterios de aceptación (17 US en `06-user-stories.md`) | 1 | ✅ hecho (preguntas resueltas: D-21 a D-27) |
 | 0 | Setup del repo: monorepo, Husky + lint-staged + ESLint + Prettier, README, ramas | 0.5–1 | ✅ hecho |
 | 1 | Core del agente en LangGraph (sin UI ni Jira) contra el runner Docker | 2–3 | ✅ hecho (PR #5 y #6, 2026-10-17 a 2026-10-23; D-28 a D-43) |
-| 2 | Integración Jira vía MCP Atlassian + manejo 404/403 | 1 | ⬜ |
+| 2 | Integración Jira (API REST; el MCP de Atlassian no funcionó con token de API, D-45) + manejo 404/403 | 1 | ✅ hecho (versión mínima, D-43 y D-45; falta subir la PR) |
 | 3 | API + PostgreSQL (jobs, intentos, clarificaciones) + tests de integración | 2 | ⬜ |
 | 4 | Frontend: Creación, Control, chat de clarificación, Administración | 2–3 | ⬜ |
 | 5 | Auth (Atlassian OAuth) y roles | 1–2 | ⬜ |
@@ -22,6 +22,7 @@
 | 7 | Infraestructura AWS con Terraform (6 bloques: ECR → RDS → Secrets → IAM → ECS/Fargate → CD) | 3–4 | ⬜ |
 | 8 | RAG (opcional según tiempo) | — | ⬜ |
 | 9 | Memoria del TFM (transversal, en paralelo a todas) | — | 🔁 continuo |
+| 10 | **(Futura, tras producción)** Ofrecerlo a otras empresas: un despliegue por empresa o SaaS multiempresa (D-44); incluye guía de administración para conectar su Atlassian | — | ⬜ |
 
 ## Hito demostrable
 Al terminar la Fase 4 hay un walking skeleton usable desde el navegador: buen momento para enseñárselo al tutor del máster.
@@ -36,7 +37,9 @@ Al terminar la Fase 4 hay un walking skeleton usable desde el navegador: buen mo
 - Revisar las 5 vulnerabilidades de `npm audit` (solo tooling de lint) en la Fase 6.
 
 ## Siguiente acción
-**Fase 1 cerrada.** Siguiente: **Fase 2 mínima** (D-43, "Camino A adelgazado"): buscar una US de Jira por su ID con el MCP de Atlassian y mostrar un error claro si no existe o no hay permisos (US-03 y US-04), con un token de desarrollo fijo; el login por usuario es la Fase 5. Después, Fase 3 (API + PostgreSQL: jobs, intentos y tests guardados, lo que falta de US-05, US-07 y US-10) y Fase 4 (frontend, hito demostrable). Estado de cada historia en la matriz de `06-user-stories.md`. Pendiente de cierre: regenerar `grafo-agente.pdf`.
+**Fase 2 cerrada** (falta subir la PR). Siguiente: **Fase 3** (API + PostgreSQL: jobs, intentos y tests guardados, lo que falta de US-05, US-07 y US-10; el job debe leer la US de Jira **antes** de lanzar el grafo, y ahí entra el aviso de "sin criterios" de US-03.3) y Fase 4 (frontend, hito demostrable). Estado de cada historia en la matriz de `06-user-stories.md`. **Antes de la Fase 3, rama aparte `fix/docker-engine-not-ready`** (con TDD): ampliar los patrones de `environment` de `agent/failure.ts` con el error de Docker Desktop mientras arranca (`request returned 500 Internal Server Error for API route and version ... _ping`), que hoy se clasifica como `technical` y luego `missing_info`, y el agente acaba preguntando al usuario por algo que no es de la US.
+
+**Estado de la Fase 2 (2026-11-04).** Hecho en la rama `feature/rf-3-jira-user-story`: contrato (`UserStory`, `JiraPort`, `JiraError` con 4 tipos), `parseIssueKey` (23 tests), `splitAcceptanceCriteria` (21), `adfToText` (conversor del formato ADF de Jira, 22 tests con respuestas reales sanitizadas de `YAQ-1` y `YAQ-2` en `backend/src/jira/fixtures/`), `loadJiraConfig` (14), `RestJira` (29, `fetch` inyectado) y `storyToPrompt` (4). `npm run try-agent -- YAQ-1` lee la US real y el agente llega a PASS (2.381 tokens); con `YAQ-999` se corta antes de llamar al LLM (RF-3). **Desvío respecto a D-43:** el MCP de Atlassian se descartó porque con token de API todas las herramientas de Jira devolvían 401 "Failed to fetch accessible products" (spike del 2026-10-25); se lee por la API REST de Jira con un token de mínimo privilegio (D-45). Token de desarrollo `yourautoqa-rest3` (aplicación Jira, solo `read:jira-work`, caduca el 9-dic-2026) en el `.env` con `ATLASSIAN_EMAIL`, `ATLASSIAN_API_TOKEN` y `ATLASSIAN_CLOUD_ID`. Guía en `docs/desarrollo/configurar-jira.md`. **Matriz:** US-03 `Parcial 2/6` y US-04 `Parcial 3/6`; el resto es UI, API y login (Fases 3 a 5). **Pendientes:** subir la PR de la rama; reportar el fallo del MCP como issue en `atlassian/atlassian-mcp-server` (decidido, el texto está preparado; confirmar si se publicó) y revocar entonces el token del MCP `yourautoqa-dev-2`; captura de Billing de Jira (¿prueba Standard? cancelar Confluence y Service Management); renovar el token antes del 9-dic-2026; qué campos de Jira son "información relevante" (hoy solo `summary` y `description`).
 
 Detalle de la Fase 1 (histórico):
 

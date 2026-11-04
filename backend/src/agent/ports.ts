@@ -28,3 +28,15 @@ export interface RunResult {
 export interface RunnerPort {
   run(robotCode: string, timeoutSeconds: number): Promise<RunResult>;
 }
+
+export interface UserStory {
+  key: string; // 'YAQ-123'
+  summary: string; // tituo
+  description: string; //texti d el user story
+  acceptanceCriteria: string | null; // lista de criterios de aceptacion o null si no hay
+}
+
+// Lanza JiraError si no puede obtenerla (ID inválido, no existe, sin permisos, Jira caído).
+export interface JiraPort {
+  getUserStory(key: string): Promise<UserStory>;
+}

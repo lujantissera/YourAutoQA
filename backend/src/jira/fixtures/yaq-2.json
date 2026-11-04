@@ -1,0 +1,23 @@
+{
+  "key": "YAQ-2",
+  "fields": {
+    "summary": "Añadir la mochila al carrito",
+    "issuetype": { "name": "Historia" },
+    "status": { "name": "Tareas por hacer" },
+    "description": {
+      "type": "doc",
+      "version": 1,
+      "content": [
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "type": "text",
+              "text": "Como cliente quiero añadir la mochila \"Sauce Labs Backpack\" al carrito para comprarla. Inicio sesión con standard_user / secret_sauce."
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
