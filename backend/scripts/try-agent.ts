@@ -1,11 +1,17 @@
 // Paso 4 de la Fase 1: conecta las piezas REALES (OpenAI + Docker) al grafo y lo prueba con una US.
 // No es un test: la respuesta del LLM cambia en cada ejecución y cuesta dinero (céntimos).
-// Uso (desde backend/): npm run try-agent -- <pass|fix|ambiguous>
+// Uso (desde backend/): npm run try-agent -- <pass|fix|ambiguous|CLAVE-JIRA>
+// Con una clave (p. ej. YAQ-1) la US se lee de Jira; si Jira falla, no se llama al LLM ni a Docker.
 import { Command } from '@langchain/langgraph';
 import { randomUUID } from 'node:crypto';
 import { createInterface } from 'node:readline/promises';
 import OpenAI from 'openai';
 import { buildGraph } from '../src/agent/graph.js';
+import { loadJiraConfig } from '../src/jira/config.js';
+import { JiraError } from '../src/jira/errors.js';
+import { parseIssueKey } from '../src/jira/issue-key.js';
+import { RestJira } from '../src/jira/rest-jira.js';
+import { storyToPrompt } from '../src/jira/story-text.js';
 import { loadOpenAiConfig } from '../src/llm/config.js';
 import { OpenAiLlm } from '../src/llm/openai-llm.js';
 import type { AttemptRecord } from '../src/agent/state.js';
@@ -61,11 +67,39 @@ function printAttempts(attempts: AttemptRecord[]): void {
   }
 }
 
+const isIssueKey = (value: string): boolean => {
+  try {
+    parseIssueKey(value);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+// El texto de la US: un escenario de ejemplo o, si es una clave de Jira, la historia real.
+// Devuelve undefined si el argumento no es ninguna de las dos cosas.
+async function loadUsText(arg: string): Promise<string | undefined> {
+  const scenario = SCENARIOS[arg];
+  if (scenario) return scenario;
+  if (!isIssueKey(arg)) return undefined;
+  const story = await new RestJira(loadJiraConfig(process.env)).getUserStory(arg);
+  return storyToPrompt(story);
+}
+
 async function main(): Promise<void> {
   const scenario = process.argv[2] ?? '';
-  const usText = SCENARIOS[scenario];
+  let usText: string | undefined;
+  try {
+    usText = await loadUsText(scenario);
+  } catch (error) {
+    // RF-3: sin US (no existe, sin permisos o Jira caído) no se sigue.
+    if (!(error instanceof JiraError)) throw error;
+    print(`No se puede continuar: ${error.message}`);
+    process.exitCode = 1;
+    return;
+  }
   if (!usText) {
-    print(`Uso: npm run try-agent -- <${Object.keys(SCENARIOS).join('|')}>`);
+    print(`Uso: npm run try-agent -- <${Object.keys(SCENARIOS).join('|')}|CLAVE-JIRA>`);
     process.exitCode = 1;
     return;
   }
