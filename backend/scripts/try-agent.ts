@@ -6,6 +6,7 @@ import { Command } from '@langchain/langgraph';
 import { randomUUID } from 'node:crypto';
 import { createInterface } from 'node:readline/promises';
 import OpenAI from 'openai';
+import { loadAgentConfig } from '../src/agent/config.js';
 import { buildGraph } from '../src/agent/graph.js';
 import { loadJiraConfig } from '../src/jira/config.js';
 import { JiraError } from '../src/jira/errors.js';
@@ -46,11 +47,6 @@ const SCENARIOS: Record<string, string> = {
 
 const print = (text: string): void => {
   process.stdout.write(`${text}\n`);
-};
-
-const numberFromEnv = (name: string, fallback: number): number => {
-  const value = Number(process.env[name]);
-  return Number.isFinite(value) && value > 0 ? value : fallback;
 };
 
 // Robot imprime mucho: del log de un fallo solo enseñamos desde la primera línea "| FAIL |".
@@ -108,13 +104,7 @@ async function main(): Promise<void> {
   const graph = buildGraph({
     llm: new OpenAiLlm(new OpenAI({ apiKey: openAi.apiKey }), openAi.models),
     runner: new DockerRunner(loadRunnerConfig(process.env)),
-    config: {
-      maxAttempts: numberFromEnv('MAX_ATTEMPTS', 5),
-      maxTokens: numberFromEnv('MAX_TOKENS', 50_000),
-      maxClarifications: numberFromEnv('MAX_CLARIFICATIONS', 3),
-      executionTimeoutSeconds: numberFromEnv('EXECUTION_TIMEOUT_SECONDS', 120),
-      storyCheck: process.env.STORY_CHECK !== 'false', // activado salvo STORY_CHECK=false
-    },
+    config: loadAgentConfig(process.env),
   });
   const thread = { configurable: { thread_id: randomUUID() } };
   const rl = createInterface({ input: process.stdin, output: process.stdout });
