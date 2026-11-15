@@ -159,3 +159,72 @@ describe('JobService (RF-3, RNF-3)', () => {
     expect(await service.getJob('no-existe')).toBeUndefined();
   });
 });
+
+describe('JobService.clarify (RF-9, US-11)', () => {
+  const question = '¿Qué credenciales hay que usar?';
+  const notReady = JSON.stringify({ ready: false, question });
+  const answer = 'Con el usuario standard_user y la contraseña secret_sauce';
+
+  // Un job que el agente ha pausado para preguntar: el comprobador de la US (storyCheck) dice
+  // que falta información. Tras la respuesta, el agente genera el test y lo ejecuta.
+  async function pausedJob() {
+    const context = setup([notReady, code(1)], [pass], { config: { storyCheck: true } });
+    const { id } = await context.service.createJob('YAQ-1');
+    await context.service.idle();
+    expect((await context.service.getJob(id))?.status).toBe('awaiting_clarification');
+    return { ...context, id };
+  }
+
+  it('reanuda el job pausado con la respuesta del usuario y llega a done', async () => {
+    const { llm, service, id } = await pausedJob();
+
+    await service.clarify(id, answer);
+    await service.idle();
+
+    expect(await service.getJob(id)).toMatchObject({ status: 'done', question: null });
+    // Las llamadas al LLM: 0 = comprobar la US, 1 = generar el test, ya con la respuesta dentro.
+    expect(llm.calls[1]?.user).toContain(answer);
+  });
+
+  it('devuelve el job al instante, en generating y sin la pregunta antigua', async () => {
+    const { service, id } = await pausedJob();
+
+    const job = await service.clarify(id, answer);
+    await service.idle();
+
+    expect(job).toMatchObject({ id, status: 'generating', question: null });
+  });
+
+  it('con un id que no existe falla con job_not_found', async () => {
+    const { service } = await pausedJob();
+
+    await expect(
+      service.clarify('22222222-2222-4222-8222-222222222222', answer),
+    ).rejects.toMatchObject({ name: 'JobError', kind: 'job_not_found' });
+  });
+
+  it('si el job no está esperando una respuesta falla con not_awaiting_clarification y no reanuda al agente', async () => {
+    const { llm, service } = setup([code(1)], [pass]);
+    const { id } = await service.createJob('YAQ-1');
+    await service.idle(); // el job termina en done sin preguntar nada
+
+    await expect(service.clarify(id, answer)).rejects.toMatchObject({
+      name: 'JobError',
+      kind: 'not_awaiting_clarification',
+    });
+    expect(llm.calls).toHaveLength(1); // solo la generación original
+  });
+
+  it('dos respuestas seguidas: la segunda se rechaza y el agente se reanuda una sola vez', async () => {
+    const { llm, service, id } = await pausedJob();
+
+    const first = service.clarify(id, answer);
+    await expect(service.clarify(id, 'otra respuesta')).rejects.toMatchObject({
+      kind: 'not_awaiting_clarification',
+    });
+    await first;
+    await service.idle();
+
+    expect(llm.calls).toHaveLength(2); // comprobar la US + generar: ninguna llamada de más
+  });
+});
