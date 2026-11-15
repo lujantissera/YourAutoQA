@@ -14,6 +14,12 @@ export interface Job {
   createdAt: Date;
 }
 
+// El resumen de un job para las listas: sin intentos ni logs (pesan mucho), solo cuántos intentos hay.
+export type JobSummary = Pick<
+  Job,
+  'id' | 'issueKey' | 'summary' | 'status' | 'tokensUsed' | 'createdAt'
+> & { attemptCount: number };
+
 // Lo único que hace falta para crear un job; el resto lo pone el repositorio.
 export interface NewJob {
   issueKey: string;

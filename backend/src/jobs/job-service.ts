@@ -4,7 +4,7 @@ import type { JiraPort } from '../agent/ports.js';
 import type { AgentStateType } from '../agent/state.js';
 import { storyToPrompt } from '../jira/story-text.js';
 import { JobError } from './errors.js';
-import type { Job, JobPatch } from './job.js';
+import type { Job, JobPatch, JobSummary } from './job.js';
 import type { JobRepository } from './job-repository.js';
 
 type AgentGraph = ReturnType<typeof buildGraph>;
@@ -36,7 +36,12 @@ function toPatch(state: Partial<AgentStateType>): JobPatch {
 }
 
 // Lo que se le da al grafo: la US para empezar, o la respuesta del usuario para reanudarlo.
-type GraphInput = { usText: string } | Command;
+// Es el tipo de entrada que acepta nuestro grafo. El `Command` de LangGraph incluye los nombres de
+// los nodos de cada grafo, así que se toma del propio grafo en vez de escribirlo a mano.
+type GraphInput = Parameters<AgentGraph['stream']>[0];
+
+// Reanudar un job pausado solo necesita la respuesta (`resume`); el resto del `Command` no se usa.
+const resumeWith = (answer: string): GraphInput => new Command({ resume: answer }) as GraphInput;
 
 export class JobService {
   private readonly running = new Set<Promise<void>>();
@@ -62,6 +67,10 @@ export class JobService {
     return this.deps.repository.get(id);
   }
 
+  listJobs(): Promise<JobSummary[]> {
+    return this.deps.repository.list();
+  }
+
   // Da la respuesta del usuario a un job pausado y reanuda al agente donde se quedó (RF-9).
   async clarify(id: string, answer: string): Promise<Job> {
     // Se anota ANTES de cualquier `await`: así, aunque lleguen dos envíos casi a la vez, el segundo
@@ -80,7 +89,7 @@ export class JobService {
         status: 'generating',
         question: null,
       });
-      this.launch(id, new Command({ resume: answer }), () => this.resuming.delete(id));
+      this.launch(id, resumeWith(answer), () => this.resuming.delete(id));
       return updated;
     } catch (error) {
       this.resuming.delete(id);

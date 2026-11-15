@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import type { Pool } from 'pg';
 import type { AttemptRecord, FailureKind, JobStatus } from '../agent/state.js';
-import type { Job, JobPatch, NewJob } from './job.js';
-import type { JobRepository } from './job-repository.js';
+import type { Job, JobPatch, JobSummary, NewJob } from './job.js';
+import { JOB_LIST_LIMIT, type JobRepository } from './job-repository.js';
 
 export interface PostgresJobRepositoryOptions {
   newId?: () => string;
@@ -159,6 +159,30 @@ export class PostgresJobRepository implements JobRepository {
       client.release();
     }
     return this.mustGet(id);
+  }
+
+  async list(): Promise<JobSummary[]> {
+    // Sin traer los intentos (pesan mucho): solo se cuentan con una subconsulta. `count` devuelve
+    // un bigint que `pg` entrega como texto, por eso el `::int`.
+    const { rows } = await this.pool.query<
+      Omit<JobRow, 'question' | 'failure_reason'> & { attempt_count: number }
+    >(
+      `SELECT j.id, j.issue_key, j.summary, j.status, j.tokens_used, j.created_at,
+              (SELECT count(*) FROM job_attempts a WHERE a.job_id = j.id)::int AS attempt_count
+         FROM jobs j
+        ORDER BY j.created_at DESC
+        LIMIT $1`,
+      [JOB_LIST_LIMIT],
+    );
+    return rows.map((row) => ({
+      id: row.id,
+      issueKey: row.issue_key,
+      summary: row.summary,
+      status: row.status,
+      tokensUsed: row.tokens_used,
+      attemptCount: row.attempt_count,
+      createdAt: row.created_at,
+    }));
   }
 
   private async mustGet(id: string): Promise<Job> {

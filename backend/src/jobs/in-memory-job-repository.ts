@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import type { Job, JobPatch, NewJob } from './job.js';
-import type { JobRepository } from './job-repository.js';
+import type { Job, JobPatch, JobSummary, NewJob } from './job.js';
+import { JOB_LIST_LIMIT, type JobRepository } from './job-repository.js';
 
 export interface InMemoryJobRepositoryOptions {
   newId?: () => string;
@@ -46,5 +46,22 @@ export class InMemoryJobRepository implements JobRepository {
     const updated: Job = { ...job, ...patch };
     this.jobs.set(id, updated);
     return structuredClone(updated);
+  }
+
+  async list(): Promise<JobSummary[]> {
+    // `reverse` antes de ordenar: si dos jobs tienen la misma fecha, el creado después va primero.
+    return [...this.jobs.values()]
+      .reverse()
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+      .slice(0, JOB_LIST_LIMIT)
+      .map((job) => ({
+        id: job.id,
+        issueKey: job.issueKey,
+        summary: job.summary,
+        status: job.status,
+        tokensUsed: job.tokensUsed,
+        attemptCount: job.attempts.length,
+        createdAt: new Date(job.createdAt),
+      }));
   }
 }

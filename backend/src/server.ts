@@ -2,6 +2,7 @@
 // No lleva tests porque solo cablea lo que ya está probado por separado con dobles; se verifica
 // arrancándolo (`npm run dev` desde backend/) y haciendo peticiones con curl.
 import { fileURLToPath } from 'node:url';
+import { PostgresSaver } from '@langchain/langgraph-checkpoint-postgres';
 import OpenAI from 'openai';
 import { Pool } from 'pg';
 import { loadAgentConfig } from './agent/config.js';
@@ -40,15 +41,24 @@ const logError = (error: unknown): void => {
 // Los jobs se guardan en PostgreSQL (D-47): sobreviven a un reinicio del servidor. Al arrancar se
 // aplican las migraciones pendientes, así no hay que acordarse de `npm run migrate`. (En
 // producción, con varias copias arrancando a la vez, esto se hará como un paso aparte.)
-const pool = new Pool({ connectionString: loadDatabaseUrl(process.env) });
+const databaseUrl = loadDatabaseUrl(process.env);
+const pool = new Pool({ connectionString: databaseUrl });
 await migrate(pool, fileURLToPath(new URL('../migrations', import.meta.url)));
 
+// Dónde LangGraph guarda "en qué paso va cada job" (D-32): en Postgres, para que un job pausado
+// esperando una respuesta se pueda reanudar aunque el servidor se reinicie. Crea sus propias tablas.
+const checkpointer = PostgresSaver.fromConnString(databaseUrl);
+await checkpointer.setup();
+
 const openAi = loadOpenAiConfig(process.env);
-const graph = buildGraph({
-  llm: new OpenAiLlm(new OpenAI({ apiKey: openAi.apiKey }), openAi.models),
-  runner: new DockerRunner(loadRunnerConfig(process.env)),
-  config: loadAgentConfig(process.env),
-});
+const graph = buildGraph(
+  {
+    llm: new OpenAiLlm(new OpenAI({ apiKey: openAi.apiKey }), openAi.models),
+    runner: new DockerRunner(loadRunnerConfig(process.env)),
+    config: loadAgentConfig(process.env),
+  },
+  checkpointer,
+);
 const jobService = new JobService({
   jira: new RestJira(loadJiraConfig(process.env)),
   repository: new PostgresJobRepository(pool),
