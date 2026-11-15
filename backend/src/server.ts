@@ -1,14 +1,18 @@
 // Punto de entrada del servidor: aquí se conectan las piezas REALES (Jira, OpenAI, Docker) a la API.
 // No lleva tests porque solo cablea lo que ya está probado por separado con dobles; se verifica
 // arrancándolo (`npm run dev` desde backend/) y haciendo peticiones con curl.
+import { fileURLToPath } from 'node:url';
 import OpenAI from 'openai';
+import { Pool } from 'pg';
 import { loadAgentConfig } from './agent/config.js';
 import { buildGraph } from './agent/graph.js';
+import { loadDatabaseUrl } from './db/config.js';
+import { migrate } from './db/migrate.js';
 import { createApp } from './http/app.js';
 import { loadJiraConfig } from './jira/config.js';
 import { RestJira } from './jira/rest-jira.js';
-import { InMemoryJobRepository } from './jobs/in-memory-job-repository.js';
 import { JobService } from './jobs/job-service.js';
+import { PostgresJobRepository } from './jobs/postgres-job-repository.js';
 import { loadOpenAiConfig } from './llm/config.js';
 import { OpenAiLlm } from './llm/openai-llm.js';
 import { loadRunnerConfig } from './runner/config.js';
@@ -33,6 +37,12 @@ const logError = (error: unknown): void => {
   console.error('Unexpected error:', error);
 };
 
+// Los jobs se guardan en PostgreSQL (D-47): sobreviven a un reinicio del servidor. Al arrancar se
+// aplican las migraciones pendientes, así no hay que acordarse de `npm run migrate`. (En
+// producción, con varias copias arrancando a la vez, esto se hará como un paso aparte.)
+const pool = new Pool({ connectionString: loadDatabaseUrl(process.env) });
+await migrate(pool, fileURLToPath(new URL('../migrations', import.meta.url)));
+
 const openAi = loadOpenAiConfig(process.env);
 const graph = buildGraph({
   llm: new OpenAiLlm(new OpenAI({ apiKey: openAi.apiKey }), openAi.models),
@@ -41,7 +51,7 @@ const graph = buildGraph({
 });
 const jobService = new JobService({
   jira: new RestJira(loadJiraConfig(process.env)),
-  repository: new InMemoryJobRepository(),
+  repository: new PostgresJobRepository(pool),
   graph,
   onError: logError,
 });
