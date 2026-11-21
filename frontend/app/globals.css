@@ -1,0 +1,159 @@
+/* Tokens de color. Todo el diseño sale de estas variables: cambiar de tema es cambiar sus valores. */
+:root {
+  --bg: #edf1f5;
+  --surface: #f7f9fb;
+  --ink: #14202b;
+  --muted: #5b6b7a;
+  --line: #c9d2db;
+  --pass: #1d7a57;
+  --fail: #b3372d;
+  --wait: #a86a0b;
+  --action: #2748c8;
+  /* Color del glifo sobre una celda rellena (✓ / ✕). */
+  --on-solid: #ffffff;
+}
+
+/* Tema oscuro automático según el sistema operativo. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1720;
+    --surface: #16212c;
+    --ink: #e6ebf0;
+    --muted: #93a3b3;
+    --line: #2a3947;
+    --pass: #4cc38a;
+    --fail: #f0766b;
+    --wait: #e0a33b;
+    --action: #7c98ff;
+    --on-solid: #0f1720;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans), system-ui, sans-serif;
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+h1,
+h2 {
+  margin: 0;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+/* Texto solo para lectores de pantalla: presente en el DOM pero invisible. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* Foco visible para quien navega con teclado. */
+:focus-visible {
+  outline: 2px solid var(--action);
+  outline-offset: 2px;
+}
+
+/* La tira de intentos: una celda por intento posible. */
+.attempt-strip {
+  display: flex;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.attempt-strip li {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  border: 1.5px solid var(--line);
+  font-size: 0.8125rem;
+  font-weight: 650;
+}
+
+.attempt-strip li[data-result='PASS'] {
+  background: var(--pass);
+  border-color: var(--pass);
+  color: var(--on-solid);
+}
+
+.attempt-strip li[data-result='FAIL'] {
+  background: var(--fail);
+  border-color: var(--fail);
+  color: var(--on-solid);
+}
+
+/* Intento aún no ejecutado: borde discontinuo y sin relleno. */
+.attempt-strip li[data-result='EMPTY'] {
+  border-style: dashed;
+}
+
+/* Página provisional para ver el diseño. La reemplazaremos por la pantalla real. */
+.page {
+  max-width: 44rem;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+.page h1 {
+  font-size: 1.75rem;
+}
+
+.job-list {
+  margin: 1.5rem 0 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--line);
+}
+
+.job-row {
+  display: grid;
+  gap: 0.5rem;
+  padding: 1rem 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.job-title {
+  display: flex;
+  gap: 0.75rem;
+  align-items: baseline;
+}
+
+.job-key {
+  font-family: var(--font-mono), monospace;
+  font-size: 0.875rem;
+  color: var(--muted);
+}
+
+.job-status {
+  font-size: 0.875rem;
+  font-weight: 650;
+}
+
+.job-status[data-tone='pass'] {
+  color: var(--pass);
+}
+.job-status[data-tone='fail'] {
+  color: var(--fail);
+}
+.job-status[data-tone='wait'] {
+  color: var(--wait);
+}
+.job-status[data-tone='neutral'] {
+  color: var(--muted);
+}
