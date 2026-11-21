@@ -31,6 +31,8 @@ interface SetupOptions {
   onError?: (error: unknown) => void;
   /** Respuestas guionizadas del LLM (por defecto, un .robot válido). */
   llmTexts?: string[];
+  /** Resultados guionizados del runner (por defecto, un solo PASS). */
+  runs?: RunResult[];
   config?: Partial<AgentConfig>;
 }
 
@@ -39,7 +41,7 @@ interface SetupOptions {
 function setup(options: SetupOptions = {}) {
   const graph = buildGraph({
     llm: new FakeLlm(options.llmTexts ?? ['*** Test Cases ***\nTest 1']),
-    runner: new FakeRunner([pass]),
+    runner: new FakeRunner(options.runs ?? [pass]),
     config: { ...config, ...options.config },
   });
   const jobService = new JobService({
@@ -165,6 +167,40 @@ describe('GET /jobs/:id', () => {
 
     expect(response.status).toBe(404);
     expect(response.body.error.code).toBe('job_not_found');
+  });
+});
+
+describe('GET /jobs', () => {
+  it('sin jobs responde 200 con una lista vacía', async () => {
+    const { app } = setup();
+
+    const response = await request(app).get('/jobs');
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ jobs: [] });
+  });
+
+  it('devuelve los jobs del más reciente al más antiguo, solo con el resumen', async () => {
+    const robot = '*** Test Cases ***\nTest 1';
+    const { app, jobService } = setup({ llmTexts: [robot, robot], runs: [pass, pass] });
+    const first = await request(app).post('/jobs').send({ issueKey: 'YAQ-1' });
+    const second = await request(app).post('/jobs').send({ issueKey: 'YAQ-1' });
+    await jobService.idle();
+
+    const response = await request(app).get('/jobs');
+
+    expect(response.status).toBe(200);
+    expect(response.body.jobs.map((job: { id: string }) => job.id)).toEqual([
+      second.body.id,
+      first.body.id,
+    ]);
+    expect(response.body.jobs[0]).toMatchObject({
+      issueKey: 'YAQ-1',
+      summary: 'Iniciar sesión con credenciales válidas',
+      status: 'done',
+      attemptCount: 1,
+    });
+    expect(response.body.jobs[0]).not.toHaveProperty('attempts');
   });
 });
 

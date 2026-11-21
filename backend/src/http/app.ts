@@ -64,6 +64,12 @@ export function createApp({ jobService, onError }: AppDeps): Express {
     res.status(202).location(`/jobs/${job.id}`).json(job);
   });
 
+  // La lista para la pantalla de seguimiento: resúmenes, sin intentos ni logs. En un objeto y no en
+  // un array suelto para poder añadir datos de paginación sin romper a quien ya la use.
+  app.get('/jobs', async (_req: Request, res: Response) => {
+    res.json({ jobs: await jobService.listJobs() });
+  });
+
   app.get('/jobs/:id', async (req: Request<{ id: string }>, res: Response) => {
     const job = await jobService.getJob(req.params.id);
     if (!job) {
