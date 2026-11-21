@@ -228,3 +228,21 @@ describe('JobService.clarify (RF-9, US-11)', () => {
     expect(llm.calls).toHaveLength(2); // comprobar la US + generar: ninguna llamada de más
   });
 });
+
+describe('JobService.recoverInterrupted (3d)', () => {
+  it('marca como fail los jobs que se quedaron en marcha y devuelve cuántos eran', async () => {
+    const { repository, service } = setup([], []);
+    const stuck = await repository.create({ issueKey: 'YAQ-1', summary: 'Colgado' });
+    const finished = await repository.create({ issueKey: 'YAQ-2', summary: 'Terminado' });
+    await repository.update(finished.id, { status: 'done' });
+
+    const count = await service.recoverInterrupted();
+
+    expect(count).toBe(1);
+    expect(await service.getJob(stuck.id)).toMatchObject({
+      status: 'fail',
+      failureReason: 'The server restarted while the agent was running.',
+    });
+    expect((await service.getJob(finished.id))?.status).toBe('done');
+  });
+});

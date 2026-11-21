@@ -11,4 +11,10 @@ export interface JobRepository {
   update(id: string, patch: JobPatch): Promise<Job>;
   /** Los más recientes primero, como máximo JOB_LIST_LIMIT. */
   list(): Promise<JobSummary[]>;
+  /**
+   * Pasa a `fail` (con este motivo) los jobs que estaban en marcha (`generating` o `running`) y
+   * devuelve cuántos eran. Se usa al arrancar el servidor: esos jobs se quedaron sin quien los
+   * ejecute. Los que esperan una respuesta (`awaiting_clarification`) no se tocan: se pueden reanudar.
+   */
+  failInterrupted(reason: string): Promise<number>;
 }

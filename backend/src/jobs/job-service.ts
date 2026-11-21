@@ -20,6 +20,8 @@ export interface JobServiceDeps {
 // Mensaje fijo y limpio (US-04.6): el detalle del error va a `onError`, nunca al usuario.
 const INTERNAL_ERROR_REASON = 'The agent stopped because of an internal error.';
 
+const INTERRUPTED_REASON = 'The server restarted while the agent was running.';
+
 const notAwaiting = (): JobError =>
   new JobError('not_awaiting_clarification', 'The job is not waiting for an answer.');
 
@@ -95,6 +97,12 @@ export class JobService {
       this.resuming.delete(id);
       throw error;
     }
+  }
+
+  // Para llamar al arrancar el servidor: los jobs que estaban en marcha cuando se apagó ya no los
+  // ejecuta nadie, así que se marcan como fallidos en vez de quedarse "en marcha" para siempre.
+  recoverInterrupted(): Promise<number> {
+    return this.deps.repository.failInterrupted(INTERRUPTED_REASON);
   }
 
   /** Espera a que terminen (o se pausen) los jobs en curso. Útil en tests y al apagar el servidor. */

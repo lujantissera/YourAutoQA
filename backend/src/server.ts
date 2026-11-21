@@ -66,6 +66,12 @@ const jobService = new JobService({
   onError: logError,
 });
 
+const interrupted = await jobService.recoverInterrupted();
+if (interrupted > 0) {
+  process.stdout.write(`Marked ${interrupted} interrupted job(s) as failed.
+`);
+}
+
 createApp({ jobService, onError: logError }).listen(port, HOST, () => {
   process.stdout.write(`API listening on http://${HOST}:${port}\n`);
 });

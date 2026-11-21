@@ -237,6 +237,39 @@ export function describeJobRepositoryContract(name: string, createHarness: Creat
       ]);
     });
 
+    // Al arrancar el servidor, los jobs que estaban en marcha se quedaron sin quien los ejecute.
+    // Los pausados esperando respuesta NO: esos se pueden reanudar (D-32).
+    it('failInterrupted pasa a fail los jobs en marcha, con el motivo, y no toca el resto', async () => {
+      const repository = await open({ now: steppingClock() });
+      const generating = await repository.create(input);
+      const running = await repository.create(input);
+      const waiting = await repository.create(input);
+      const done = await repository.create(input);
+      await repository.update(running.id, { status: 'running' });
+      await repository.update(waiting.id, { status: 'awaiting_clarification', question: '¿?' });
+      await repository.update(done.id, { status: 'done' });
+
+      const count = await repository.failInterrupted('Server restarted');
+
+      expect(count).toBe(2);
+      expect(await repository.get(generating.id)).toMatchObject({
+        status: 'fail',
+        failureReason: 'Server restarted',
+      });
+      expect(await repository.get(running.id)).toMatchObject({ status: 'fail' });
+      expect(await repository.get(waiting.id)).toMatchObject({
+        status: 'awaiting_clarification',
+        failureReason: null,
+      });
+      expect(await repository.get(done.id)).toMatchObject({ status: 'done' });
+    });
+
+    it('failInterrupted devuelve 0 si no hay jobs en marcha', async () => {
+      const repository = await open();
+
+      expect(await repository.failInterrupted('Server restarted')).toBe(0);
+    });
+
     it('list devuelve como máximo 100 jobs, los más recientes', async () => {
       const repository = await open({ now: steppingClock() });
       const created: string[] = [];
