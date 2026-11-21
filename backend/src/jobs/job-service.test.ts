@@ -3,11 +3,13 @@ import type { AgentConfig } from '../agent/config.js';
 import { buildGraph } from '../agent/graph.js';
 import {
   RunnerUnavailableError,
+  type LlmPort,
   type RunnerPort,
   type RunResult,
   type UserStory,
 } from '../agent/ports.js';
 import { FakeLlm, FakeRunner } from '../agent/testing/fakes.js';
+import { LlmError, type LlmErrorKind } from '../llm/openai-llm.js';
 import { FakeJira } from '../jira/testing/fakes.js';
 import { storyToPrompt } from '../jira/story-text.js';
 import { InMemoryJobRepository } from './in-memory-job-repository.js';
@@ -33,6 +35,7 @@ const pass: RunResult = { result: 'PASS', logs: 'ok', timedOut: false };
 const code = (n: number) => `*** Test Cases ***\nTest ${n}`;
 
 interface SetupOptions {
+  llm?: LlmPort;
   config?: Partial<AgentConfig>;
   runner?: RunnerPort;
   onError?: (error: unknown) => void;
@@ -42,7 +45,11 @@ interface SetupOptions {
 function setup(llmTexts: string[], runs: RunResult[], options: SetupOptions = {}) {
   const llm = new FakeLlm(llmTexts);
   const runner = options.runner ?? new FakeRunner(runs);
-  const graph = buildGraph({ llm, runner, config: { ...baseConfig, ...options.config } });
+  const graph = buildGraph({
+    llm: options.llm ?? llm,
+    runner,
+    config: { ...baseConfig, ...options.config },
+  });
   const repository = new InMemoryJobRepository();
   const jira = new FakeJira({ 'YAQ-1': story });
   const service = new JobService({ jira, repository, graph, onError: options.onError });
@@ -267,5 +274,25 @@ describe('JobService cuando el runner no está disponible (3d)', () => {
       question: null,
       failureReason: 'Docker is not available. Start Docker and try again.',
     });
+  });
+});
+
+describe('JobService cuando falla OpenAI (3d)', () => {
+  const cases: [LlmErrorKind, string][] = [
+    ['auth', 'OpenAI rejected the API key. Check OPENAI_API_KEY and restart the server.'],
+    ['quota', 'OpenAI credit exhausted. Add credit and try again.'],
+    ['rate_limit', 'OpenAI rate limit reached. Try again in a moment.'],
+    ['network', 'Could not reach OpenAI. Check the connection and try again.'],
+    ['unknown', 'The agent stopped because of an internal error.'],
+  ];
+
+  it.each(cases)('un error %s deja el job en fail con su motivo claro', async (kind, reason) => {
+    const llm: LlmPort = { generate: () => Promise.reject(new LlmError(kind, 'detalle')) };
+    const { service } = setup([], [], { llm });
+
+    const job = await service.createJob('YAQ-1');
+    await service.idle();
+
+    expect(await service.getJob(job.id)).toMatchObject({ status: 'fail', failureReason: reason });
   });
 });

@@ -15,7 +15,7 @@ import { RestJira } from './jira/rest-jira.js';
 import { JobService } from './jobs/job-service.js';
 import { PostgresJobRepository } from './jobs/postgres-job-repository.js';
 import { loadOpenAiConfig } from './llm/config.js';
-import { OpenAiLlm } from './llm/openai-llm.js';
+import { LlmError, OpenAiLlm } from './llm/openai-llm.js';
 import { loadRunnerConfig } from './runner/config.js';
 import { DockerRunner } from './runner/docker-runner.js';
 
@@ -34,8 +34,13 @@ if (!Number.isInteger(port) || port < 1 || port > 65_535) {
   throw new Error('PORT must be an integer between 1 and 65535');
 }
 
+// Un error de OpenAI ya trae un mensaje limpio: se imprime en una línea, sin el volcado completo.
 const logError = (error: unknown): void => {
-  console.error('Unexpected error:', error);
+  if (error instanceof LlmError) {
+    console.error(`LLM error (${error.kind}): ${error.message}`);
+  } else {
+    console.error('Unexpected error:', error);
+  }
 };
 
 // Los jobs se guardan en PostgreSQL (D-47): sobreviven a un reinicio del servidor. Al arrancar se
