@@ -10,7 +10,13 @@ const MAX_ATTEMPTS = 5;
 type State =
   { kind: 'loading' } | { kind: 'error'; message: string } | { kind: 'ready'; jobs: JobSummary[] };
 
-export function JobList({ loadJobs = listJobs }: { loadJobs?: () => Promise<JobSummary[]> }) {
+type JobListProps = {
+  loadJobs?: () => Promise<JobSummary[]>;
+  /** Cuando cambia, la lista se vuelve a cargar (p. ej. tras crear un job). */
+  refreshKey?: number;
+};
+
+export function JobList({ loadJobs = listJobs, refreshKey = 0 }: JobListProps) {
   const [state, setState] = useState<State>({ kind: 'loading' });
   // Subir este contador vuelve a lanzar la carga: es lo que hace el botón "Reintentar".
   const [round, setRound] = useState(0);
@@ -34,7 +40,7 @@ export function JobList({ loadJobs = listJobs }: { loadJobs?: () => Promise<JobS
     return () => {
       cancelled = true;
     };
-  }, [loadJobs, round]);
+  }, [loadJobs, round, refreshKey]);
 
   if (state.kind === 'loading') return <p role="status">Cargando jobs…</p>;
 

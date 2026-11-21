@@ -24,17 +24,15 @@ describe('JobList', () => {
   });
 
   it('shows one row per job with its key, summary and status', async () => {
-    const loadJobs = vi
-      .fn()
-      .mockResolvedValue([
-        job({ id: '1', issueKey: 'PROJ-123', summary: 'Login con email' }),
-        job({
-          id: '2',
-          issueKey: 'PROJ-120',
-          summary: 'Carrito',
-          status: 'awaiting_clarification',
-        }),
-      ]);
+    const loadJobs = vi.fn().mockResolvedValue([
+      job({ id: '1', issueKey: 'PROJ-123', summary: 'Login con email' }),
+      job({
+        id: '2',
+        issueKey: 'PROJ-120',
+        summary: 'Carrito',
+        status: 'awaiting_clarification',
+      }),
+    ]);
 
     render(<JobList loadJobs={loadJobs} />);
 
@@ -66,6 +64,26 @@ describe('JobList', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Reintentar' }));
 
     expect(await screen.findByText('Login con email')).toBeInTheDocument();
+    expect(loadJobs).toHaveBeenCalledTimes(2);
+  });
+
+  it('reloads the jobs when refreshKey changes, without going back to loading', async () => {
+    const loadJobs = vi
+      .fn()
+      .mockResolvedValueOnce([job({ id: '1', summary: 'Login con email' })])
+      .mockResolvedValueOnce([
+        job({ id: '1', summary: 'Login con email' }),
+        job({ id: '2', issueKey: 'PROJ-124', summary: 'Recuperar contraseña' }),
+      ]);
+
+    const { rerender } = render(<JobList loadJobs={loadJobs} refreshKey={0} />);
+    expect(await screen.findByText('Login con email')).toBeInTheDocument();
+
+    rerender(<JobList loadJobs={loadJobs} refreshKey={1} />);
+
+    // La lista que ya se veía no desaparece mientras llega la nueva.
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(await screen.findByText('Recuperar contraseña')).toBeInTheDocument();
     expect(loadJobs).toHaveBeenCalledTimes(2);
   });
 });
