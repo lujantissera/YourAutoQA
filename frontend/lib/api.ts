@@ -45,3 +45,21 @@ export async function listJobs(): Promise<JobSummary[]> {
   // En JSON las fechas viajan como texto: aquí las convertimos a Date.
   return body.jobs.map((job) => ({ ...job, createdAt: new Date(job.createdAt) }));
 }
+
+// Lo que devuelve el backend al crear un job: lo justo para saber que ha empezado.
+export type CreatedJob = {
+  id: string;
+  issueKey: string;
+  summary: string;
+  status: JobStatus;
+};
+
+export async function createJob(issueKey: string): Promise<CreatedJob> {
+  const response = await fetch('/api/jobs', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ issueKey }),
+  });
+  if (!response.ok) throw await readError(response);
+  return (await response.json()) as CreatedJob;
+}

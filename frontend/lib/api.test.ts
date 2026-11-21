@@ -1,4 +1,4 @@
-import { ApiError, listJobs } from './api';
+import { ApiError, createJob, listJobs } from './api';
 
 // Sustituye fetch por un falso: los tests nunca llaman al backend real.
 const mockFetch = vi.fn();
@@ -75,5 +75,39 @@ describe('listJobs', () => {
 
     expect(failure).toBeInstanceOf(ApiError);
     expect(failure).toMatchObject({ code: 'internal_error', message: 'Internal server error.' });
+  });
+});
+
+describe('createJob', () => {
+  it('posts the issue key as JSON and returns the created job', async () => {
+    mockFetch.mockResolvedValue(
+      jsonResponse(
+        { id: 'job-9', issueKey: 'PROJ-123', summary: 'Login', status: 'generating' },
+        202,
+      ),
+    );
+
+    const created = await createJob('PROJ-123');
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      '/api/jobs',
+      expect.objectContaining({
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ issueKey: 'PROJ-123' }),
+      }),
+    );
+    expect(created).toMatchObject({ id: 'job-9', status: 'generating' });
+  });
+
+  it('throws an ApiError with the Jira error code when the story cannot be used', async () => {
+    mockFetch.mockResolvedValue(
+      jsonResponse({ error: { code: 'not_found', message: 'Issue PROJ-999 not found.' } }, 404),
+    );
+
+    const failure = await createJob('PROJ-999').catch((error: unknown) => error);
+
+    expect(failure).toBeInstanceOf(ApiError);
+    expect(failure).toMatchObject({ code: 'not_found', message: 'Issue PROJ-999 not found.' });
   });
 });
