@@ -1,7 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { AgentConfig } from '../agent/config.js';
 import { buildGraph } from '../agent/graph.js';
-import type { RunnerPort, RunResult, UserStory } from '../agent/ports.js';
+import {
+  RunnerUnavailableError,
+  type RunnerPort,
+  type RunResult,
+  type UserStory,
+} from '../agent/ports.js';
 import { FakeLlm, FakeRunner } from '../agent/testing/fakes.js';
 import { FakeJira } from '../jira/testing/fakes.js';
 import { storyToPrompt } from '../jira/story-text.js';
@@ -244,5 +249,23 @@ describe('JobService.recoverInterrupted (3d)', () => {
       failureReason: 'The server restarted while the agent was running.',
     });
     expect((await service.getJob(finished.id))?.status).toBe('done');
+  });
+});
+
+describe('JobService cuando el runner no está disponible (3d)', () => {
+  it('el job pasa a fail con un motivo claro de Docker, sin preguntar al usuario', async () => {
+    const runner: RunnerPort = {
+      run: () => Promise.reject(new RunnerUnavailableError('daemon is down')),
+    };
+    const { service } = setup([code(1)], [], { runner });
+
+    const job = await service.createJob('YAQ-1');
+    await service.idle();
+
+    expect(await service.getJob(job.id)).toMatchObject({
+      status: 'fail',
+      question: null,
+      failureReason: 'Docker is not available. Start Docker and try again.',
+    });
   });
 });

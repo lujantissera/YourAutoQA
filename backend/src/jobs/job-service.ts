@@ -1,6 +1,6 @@
 import { Command } from '@langchain/langgraph';
 import type { buildGraph } from '../agent/graph.js';
-import type { JiraPort } from '../agent/ports.js';
+import { RunnerUnavailableError, type JiraPort } from '../agent/ports.js';
 import type { AgentStateType } from '../agent/state.js';
 import { storyToPrompt } from '../jira/story-text.js';
 import { JobError } from './errors.js';
@@ -20,6 +20,7 @@ export interface JobServiceDeps {
 // Mensaje fijo y limpio (US-04.6): el detalle del error va a `onError`, nunca al usuario.
 const INTERNAL_ERROR_REASON = 'The agent stopped because of an internal error.';
 
+const DOCKER_REASON = 'Docker is not available. Start Docker and try again.';
 const INTERRUPTED_REASON = 'The server restarted while the agent was running.';
 
 const notAwaiting = (): JobError =>
@@ -135,7 +136,11 @@ export class JobService {
     } catch (error) {
       onError?.(error);
       await repository
-        .update(jobId, { status: 'fail', failureReason: INTERNAL_ERROR_REASON })
+        .update(jobId, {
+          status: 'fail',
+          failureReason:
+            error instanceof RunnerUnavailableError ? DOCKER_REASON : INTERNAL_ERROR_REASON,
+        })
         .catch((updateError: unknown) => onError?.(updateError));
     }
   }

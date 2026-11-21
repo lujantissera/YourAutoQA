@@ -3,9 +3,9 @@ import { randomUUID } from 'node:crypto';
 import { chmod, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { RunnerPort, RunResult } from '../agent/ports.js';
+import { RunnerUnavailableError, type RunnerPort, type RunResult } from '../agent/ports.js';
 import { buildDockerRunArgs, type DockerRunOptions } from './docker-args.js';
-import { isPassingRun } from './robot-summary.js';
+import { dockerItselfFailed, isPassingRun } from './robot-summary.js';
 
 // Los logs de un test descontrolado pueden ser enormes: nos quedamos con una parte.
 const MAX_LOG_CHARS = 200_000;
@@ -53,11 +53,15 @@ export class DockerRunner implements RunnerPort {
 
       child.on('error', (error) => {
         clearTimeout(timer);
-        reject(error); // p. ej. Docker no está instalado o no arranca
+        reject(new RunnerUnavailableError(error.message)); // p. ej. Docker no está instalado
       });
 
       child.on('close', (exitCode) => {
         clearTimeout(timer);
+        if (dockerItselfFailed(exitCode, timedOut)) {
+          reject(new RunnerUnavailableError(output.slice(0, 500)));
+          return;
+        }
         resolve({
           // Código 0 no basta: Robot también devuelve 0 si el test se omitió (Skip). Si un log
           // enorme se cortara antes del resumen final, no se podría confirmar y contaría como FAIL.

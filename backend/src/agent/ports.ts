@@ -25,6 +25,15 @@ export interface RunResult {
   timedOut: boolean;
 }
 
+// El runner no pudo ni intentar ejecutar el test (p. ej. Docker apagado). Es distinto de un FAIL:
+// el test no llegó a correr, así que no es culpa del test ni tiene sentido corregirlo o preguntar.
+export class RunnerUnavailableError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'RunnerUnavailableError';
+  }
+}
+
 export interface RunnerPort {
   run(robotCode: string, timeoutSeconds: number): Promise<RunResult>;
 }

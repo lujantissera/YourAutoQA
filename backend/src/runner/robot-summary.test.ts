@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isPassingRun, parseRobotSummary } from './robot-summary.js';
+import { dockerItselfFailed, isPassingRun, parseRobotSummary } from './robot-summary.js';
 
 const summaryLine = (counts: string): string =>
   `==============\n${counts}\nOutput:  /work/results/output.xml\n`;
@@ -66,5 +66,22 @@ describe('isPassingRun', () => {
 
   it('es falso si hubo timeout, aunque el resumen pareciera correcto', () => {
     expect(isPassingRun(0, true, summaryLine('1 test, 1 passed, 0 failed'))).toBe(false);
+  });
+});
+
+// Docker sale con 125 cuando es `docker run` quien falla (p. ej. el daemon apagado), no el test.
+describe('dockerItselfFailed', () => {
+  it('es true con el código 125 y sin timeout', () => {
+    expect(dockerItselfFailed(125, false)).toBe(true);
+  });
+
+  it('es false con los códigos normales de Robot', () => {
+    expect(dockerItselfFailed(0, false)).toBe(false);
+    expect(dockerItselfFailed(1, false)).toBe(false);
+    expect(dockerItselfFailed(null, false)).toBe(false);
+  });
+
+  it('es false si hubo timeout, aunque el código sea 125', () => {
+    expect(dockerItselfFailed(125, true)).toBe(false);
   });
 });
