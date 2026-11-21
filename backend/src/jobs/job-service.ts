@@ -1,8 +1,10 @@
+import { Command } from '@langchain/langgraph';
 import type { buildGraph } from '../agent/graph.js';
 import type { JiraPort } from '../agent/ports.js';
 import type { AgentStateType } from '../agent/state.js';
 import { storyToPrompt } from '../jira/story-text.js';
-import type { Job, JobPatch } from './job.js';
+import { JobError } from './errors.js';
+import type { Job, JobPatch, JobSummary } from './job.js';
 import type { JobRepository } from './job-repository.js';
 
 type AgentGraph = ReturnType<typeof buildGraph>;
@@ -18,6 +20,9 @@ export interface JobServiceDeps {
 // Mensaje fijo y limpio (US-04.6): el detalle del error va a `onError`, nunca al usuario.
 const INTERNAL_ERROR_REASON = 'The agent stopped because of an internal error.';
 
+const notAwaiting = (): JobError =>
+  new JobError('not_awaiting_clarification', 'The job is not waiting for an answer.');
+
 // Copia al job lo que cambió en el estado del grafo. Solo los campos que vienen definidos: si
 // llegara un trozo parcial, no debe borrar lo ya guardado.
 function toPatch(state: Partial<AgentStateType>): JobPatch {
@@ -30,8 +35,18 @@ function toPatch(state: Partial<AgentStateType>): JobPatch {
   return patch;
 }
 
+// Lo que se le da al grafo: la US para empezar, o la respuesta del usuario para reanudarlo.
+// Es el tipo de entrada que acepta nuestro grafo. El `Command` de LangGraph incluye los nombres de
+// los nodos de cada grafo, así que se toma del propio grafo en vez de escribirlo a mano.
+type GraphInput = Parameters<AgentGraph['stream']>[0];
+
+// Reanudar un job pausado solo necesita la respuesta (`resume`); el resto del `Command` no se usa.
+const resumeWith = (answer: string): GraphInput => new Command({ resume: answer }) as GraphInput;
+
 export class JobService {
   private readonly running = new Set<Promise<void>>();
+  // Jobs que se están reanudando ahora mismo: evita reanudar dos veces con un doble envío.
+  private readonly resuming = new Set<string>();
 
   constructor(private readonly deps: JobServiceDeps) {}
 
@@ -44,8 +59,7 @@ export class JobService {
       summary: story.summary,
     });
 
-    const run = this.run(job.id, storyToPrompt(story)).finally(() => this.running.delete(run));
-    this.running.add(run);
+    this.launch(job.id, { usText: storyToPrompt(story) });
     return job;
   }
 
@@ -53,21 +67,60 @@ export class JobService {
     return this.deps.repository.get(id);
   }
 
+  listJobs(): Promise<JobSummary[]> {
+    return this.deps.repository.list();
+  }
+
+  // Da la respuesta del usuario a un job pausado y reanuda al agente donde se quedó (RF-9).
+  async clarify(id: string, answer: string): Promise<Job> {
+    // Se anota ANTES de cualquier `await`: así, aunque lleguen dos envíos casi a la vez, el segundo
+    // ya encuentra la anotación y se rechaza (en un solo servidor; con varios haría falta la BD).
+    if (this.resuming.has(id)) throw notAwaiting();
+    this.resuming.add(id);
+
+    try {
+      const job = await this.deps.repository.get(id);
+      if (!job) throw new JobError('job_not_found', 'Job not found.');
+      if (job.status !== 'awaiting_clarification') throw notAwaiting();
+
+      // Primero el job pasa a `generating` y pierde la pregunta, y solo después se reanuda al
+      // agente: quien consulte el job ya ve que hay trabajo en marcha, no la pregunta antigua.
+      const updated = await this.deps.repository.update(id, {
+        status: 'generating',
+        question: null,
+      });
+      this.launch(id, resumeWith(answer), () => this.resuming.delete(id));
+      return updated;
+    } catch (error) {
+      this.resuming.delete(id);
+      throw error;
+    }
+  }
+
   /** Espera a que terminen (o se pausen) los jobs en curso. Útil en tests y al apagar el servidor. */
   async idle(): Promise<void> {
     await Promise.all(this.running);
   }
 
+  // Lanza el agente en segundo plano y lo apunta en `running` mientras dura (para `idle`).
+  private launch(jobId: string, input: GraphInput, onDone?: () => void): void {
+    const run = this.run(jobId, input).finally(() => {
+      this.running.delete(run);
+      onDone?.();
+    });
+    this.running.add(run);
+  }
+
   // Nunca rechaza: cualquier fallo acaba en el job (`fail`) y en `onError`, sin dejar jobs colgados.
-  private async run(jobId: string, usText: string): Promise<void> {
+  private async run(jobId: string, input: GraphInput): Promise<void> {
     const { graph, repository, onError } = this.deps;
     try {
       // thread_id = id del job: el checkpointer guarda la conversación de cada job por separado.
       // streamMode 'values' emite el estado completo tras cada paso, y así el job va avanzando.
-      const states = await graph.stream(
-        { usText },
-        { configurable: { thread_id: jobId }, streamMode: 'values' },
-      );
+      const states = await graph.stream(input, {
+        configurable: { thread_id: jobId },
+        streamMode: 'values',
+      });
       for await (const state of states) {
         await repository.update(jobId, toPatch(state));
       }

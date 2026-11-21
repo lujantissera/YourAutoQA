@@ -29,15 +29,20 @@ const pass: RunResult = { result: 'PASS', logs: 'ok', timedOut: false };
 interface SetupOptions {
   jira?: JiraPort;
   onError?: (error: unknown) => void;
+  /** Respuestas guionizadas del LLM (por defecto, un .robot válido). */
+  llmTexts?: string[];
+  /** Resultados guionizados del runner (por defecto, un solo PASS). */
+  runs?: RunResult[];
+  config?: Partial<AgentConfig>;
 }
 
 // La aplicación completa con el servicio real y dobles de Jira, LLM y runner. `supertest` hace las
 // peticiones directamente a `app`, sin abrir ningún puerto.
 function setup(options: SetupOptions = {}) {
   const graph = buildGraph({
-    llm: new FakeLlm(['*** Test Cases ***\nTest 1']),
-    runner: new FakeRunner([pass]),
-    config,
+    llm: new FakeLlm(options.llmTexts ?? ['*** Test Cases ***\nTest 1']),
+    runner: new FakeRunner(options.runs ?? [pass]),
+    config: { ...config, ...options.config },
   });
   const jobService = new JobService({
     jira: options.jira ?? new FakeJira({ 'YAQ-1': story }),
@@ -162,5 +167,114 @@ describe('GET /jobs/:id', () => {
 
     expect(response.status).toBe(404);
     expect(response.body.error.code).toBe('job_not_found');
+  });
+});
+
+describe('GET /jobs', () => {
+  it('sin jobs responde 200 con una lista vacía', async () => {
+    const { app } = setup();
+
+    const response = await request(app).get('/jobs');
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ jobs: [] });
+  });
+
+  it('devuelve los jobs del más reciente al más antiguo, solo con el resumen', async () => {
+    const robot = '*** Test Cases ***\nTest 1';
+    const { app, jobService } = setup({ llmTexts: [robot, robot], runs: [pass, pass] });
+    const first = await request(app).post('/jobs').send({ issueKey: 'YAQ-1' });
+    const second = await request(app).post('/jobs').send({ issueKey: 'YAQ-1' });
+    await jobService.idle();
+
+    const response = await request(app).get('/jobs');
+
+    expect(response.status).toBe(200);
+    expect(response.body.jobs.map((job: { id: string }) => job.id)).toEqual([
+      second.body.id,
+      first.body.id,
+    ]);
+    expect(response.body.jobs[0]).toMatchObject({
+      issueKey: 'YAQ-1',
+      summary: 'Iniciar sesión con credenciales válidas',
+      status: 'done',
+      attemptCount: 1,
+    });
+    expect(response.body.jobs[0]).not.toHaveProperty('attempts');
+  });
+});
+
+describe('POST /jobs/:id/clarify (RF-9, US-11)', () => {
+  const notReady = JSON.stringify({ ready: false, question: '¿Qué credenciales hay que usar?' });
+  const answer = 'Con el usuario standard_user y la contraseña secret_sauce';
+
+  // Un job que el agente ha pausado para preguntar (storyCheck dice que falta información).
+  async function pausedJob() {
+    const context = setup({
+      llmTexts: [notReady, '*** Test Cases ***\nTest 1'],
+      config: { storyCheck: true },
+    });
+    const created = await request(context.app).post('/jobs').send({ issueKey: 'YAQ-1' });
+    await context.jobService.idle();
+    return { ...context, id: created.body.id as string };
+  }
+
+  it('con una respuesta válida responde 202 con el job reanudado', async () => {
+    const { app, jobService, id } = await pausedJob();
+
+    const response = await request(app).post(`/jobs/${id}/clarify`).send({ answer });
+    await jobService.idle();
+
+    expect(response.status).toBe(202);
+    expect(response.body).toMatchObject({ id, status: 'generating', question: null });
+    const finished = await request(app).get(`/jobs/${id}`);
+    expect(finished.body.status).toBe('done');
+  });
+
+  it('acepta una respuesta de exactamente 2.000 caracteres', async () => {
+    const { app, jobService, id } = await pausedJob();
+
+    const response = await request(app)
+      .post(`/jobs/${id}/clarify`)
+      .send({ answer: 'x'.repeat(2000) });
+    await jobService.idle();
+
+    expect(response.status).toBe(202);
+  });
+
+  it('con un id desconocido responde 404 job_not_found', async () => {
+    const { app } = setup();
+
+    const response = await request(app).post('/jobs/no-existe/clarify').send({ answer });
+
+    expect(response.status).toBe(404);
+    expect(response.body.error.code).toBe('job_not_found');
+  });
+
+  it('si el job no está esperando una respuesta responde 409 not_awaiting_clarification', async () => {
+    const { app, jobService } = setup();
+    const created = await request(app).post('/jobs').send({ issueKey: 'YAQ-1' });
+    await jobService.idle(); // este job termina en done sin preguntar nada
+
+    const response = await request(app).post(`/jobs/${created.body.id}/clarify`).send({ answer });
+
+    expect(response.status).toBe(409);
+    expect(response.body.error.code).toBe('not_awaiting_clarification');
+  });
+
+  it.each([
+    ['sin answer', {}],
+    ['answer que no es texto', { answer: 42 }],
+    ['answer vacío', { answer: '' }],
+    ['answer solo con espacios', { answer: '   ' }],
+    ['answer de más de 2.000 caracteres', { answer: 'x'.repeat(2001) }],
+    ['sin cuerpo', undefined],
+  ])('cuerpo inválido (%s): responde 400 invalid_request', async (_label, body) => {
+    const { app, id } = await pausedJob();
+
+    const response = await request(app).post(`/jobs/${id}/clarify`).send(body);
+
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe('invalid_request');
   });
 });

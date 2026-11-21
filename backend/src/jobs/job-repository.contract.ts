@@ -183,5 +183,72 @@ export function describeJobRepositoryContract(name: string, createHarness: Creat
       await repository.update(JOB_ID, { question: null, failureReason: null });
       expect(await repository.get(JOB_ID)).toMatchObject({ question: null, failureReason: null });
     });
+
+    // Un reloj que avanza un segundo en cada llamada: así el orden por fecha es siempre el mismo.
+    const steppingClock = () => {
+      let step = 0;
+      return () => new Date(createdAt.getTime() + step++ * 1000);
+    };
+
+    it('list devuelve una lista vacía si no hay jobs', async () => {
+      const repository = await open();
+
+      expect(await repository.list()).toEqual([]);
+    });
+
+    it('list devuelve del más reciente al más antiguo, solo con los campos del resumen', async () => {
+      const repository = await open({ now: steppingClock() });
+      const first = await repository.create({ issueKey: 'YAQ-1', summary: 'Primero' });
+      const second = await repository.create({ issueKey: 'YAQ-2', summary: 'Segundo' });
+
+      expect(await repository.list()).toEqual([
+        {
+          id: second.id,
+          issueKey: 'YAQ-2',
+          summary: 'Segundo',
+          status: 'generating',
+          tokensUsed: 0,
+          attemptCount: 0,
+          createdAt: second.createdAt,
+        },
+        {
+          id: first.id,
+          issueKey: 'YAQ-1',
+          summary: 'Primero',
+          status: 'generating',
+          tokensUsed: 0,
+          attemptCount: 0,
+          createdAt: first.createdAt,
+        },
+      ]);
+    });
+
+    it('list refleja el estado, los tokens y el número de intentos guardados', async () => {
+      const repository = await open({ now: steppingClock() });
+      const job = await repository.create(input);
+      await repository.update(job.id, {
+        status: 'running',
+        tokensUsed: 500,
+        attempts: [attempt(1), attempt(2)],
+      });
+
+      expect(await repository.list()).toMatchObject([
+        { id: job.id, status: 'running', tokensUsed: 500, attemptCount: 2 },
+      ]);
+    });
+
+    it('list devuelve como máximo 100 jobs, los más recientes', async () => {
+      const repository = await open({ now: steppingClock() });
+      const created: string[] = [];
+      for (let index = 0; index < 101; index++) {
+        created.push((await repository.create(input)).id);
+      }
+
+      const jobs = await repository.list();
+
+      expect(jobs).toHaveLength(100);
+      expect(jobs[0]?.id).toBe(created[100]); // el último creado, primero
+      expect(jobs.map((job) => job.id)).not.toContain(created[0]); // el más antiguo queda fuera
+    });
   });
 }

@@ -1,4 +1,10 @@
-import { END, MemorySaver, START, StateGraph } from '@langchain/langgraph';
+import {
+  END,
+  MemorySaver,
+  START,
+  StateGraph,
+  type BaseCheckpointSaver,
+} from '@langchain/langgraph';
 import { createNodes, type AgentDeps } from './nodes.js';
 import {
   routeAfterClassify,
@@ -9,7 +15,9 @@ import {
 import { AgentState } from './state.js';
 
 // Aquí se "dibuja" el diagrama: nodos (cajas) + aristas (flechas) + aristas condicionales (rombos).
-export function buildGraph(deps: AgentDeps) {
+// `checkpointer` es dónde LangGraph guarda "en qué paso va cada job". Por defecto, en memoria (para
+// los tests); el servidor le pasa uno de Postgres para que un job pausado sobreviva a un reinicio.
+export function buildGraph(deps: AgentDeps, checkpointer: BaseCheckpointSaver = new MemorySaver()) {
   const nodes = createNodes(deps);
 
   return (
@@ -53,7 +61,6 @@ export function buildGraph(deps: AgentDeps) {
       .addEdge('markDone', END)
       .addEdge('markFailed', END)
       // El checkpointer guarda el estado por hilo (job). Imprescindible para `interrupt`.
-      // En la Fase 3 pasará a Postgres (D-32).
-      .compile({ checkpointer: new MemorySaver() })
+      .compile({ checkpointer })
   );
 }
