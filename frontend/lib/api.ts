@@ -63,3 +63,44 @@ export async function createJob(issueKey: string): Promise<CreatedJob> {
   if (!response.ok) throw await readError(response);
   return (await response.json()) as CreatedJob;
 }
+
+export type FailureKind = 'technical' | 'missing_info' | 'environment' | 'cannot_test';
+
+// Un intento tal como lo devuelve GET /jobs/:id: el código Robot y el resultado de ejecutarlo.
+export type AttemptDetail = {
+  id: number;
+  attempt: number;
+  robotCode: string;
+  run: { result: 'PASS' | 'FAIL'; logs: string; timedOut: boolean };
+  failureKind: FailureKind | null;
+};
+
+export type JobDetail = Omit<JobSummary, 'attemptCount'> & {
+  attempts: AttemptDetail[];
+  question: string | null;
+  failureReason: string | null;
+};
+
+type JobDetailBody = Omit<JobDetail, 'createdAt'> & { createdAt: string };
+
+const toJobDetail = (body: JobDetailBody): JobDetail => ({
+  ...body,
+  createdAt: new Date(body.createdAt),
+});
+
+export async function getJob(id: string): Promise<JobDetail> {
+  const response = await fetch(`/api/jobs/${encodeURIComponent(id)}`, { cache: 'no-store' });
+  if (!response.ok) throw await readError(response);
+  return toJobDetail((await response.json()) as JobDetailBody);
+}
+
+// El usuario contesta a la pregunta de un job pausado y el agente se reanuda (RF-9).
+export async function clarify(id: string, answer: string): Promise<JobDetail> {
+  const response = await fetch(`/api/jobs/${encodeURIComponent(id)}/clarify`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ answer }),
+  });
+  if (!response.ok) throw await readError(response);
+  return toJobDetail((await response.json()) as JobDetailBody);
+}
