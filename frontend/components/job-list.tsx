@@ -3,9 +3,11 @@
 import { useEffect, useState } from 'react';
 import { ApiError, listJobs, type JobSummary } from '../lib/api';
 import { describeJob } from '../lib/describe-job';
+import { shouldPoll } from '../lib/should-poll';
 import { AttemptStrip } from './attempt-strip';
 
 const MAX_ATTEMPTS = 5;
+const DEFAULT_POLL_INTERVAL_MS = 3000;
 
 type State =
   { kind: 'loading' } | { kind: 'error'; message: string } | { kind: 'ready'; jobs: JobSummary[] };
@@ -14,18 +16,29 @@ type JobListProps = {
   loadJobs?: () => Promise<JobSummary[]>;
   /** Cuando cambia, la lista se vuelve a cargar (p. ej. tras crear un job). */
   refreshKey?: number;
+  /** Cada cuántos ms se vuelve a consultar mientras algún job siga en curso. */
+  pollIntervalMs?: number;
 };
 
-export function JobList({ loadJobs = listJobs, refreshKey = 0 }: JobListProps) {
+export function JobList({
+  loadJobs = listJobs,
+  refreshKey = 0,
+  pollIntervalMs = DEFAULT_POLL_INTERVAL_MS,
+}: JobListProps) {
   const [state, setState] = useState<State>({ kind: 'loading' });
-  // Subir este contador vuelve a lanzar la carga: es lo que hace el botón "Reintentar".
+  // Subir este contador vuelve a lanzar la carga: lo hacen el botón "Reintentar" y el temporizador.
   const [round, setRound] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     loadJobs().then(
       (jobs) => {
-        if (!cancelled) setState({ kind: 'ready', jobs });
+        if (cancelled) return;
+        setState({ kind: 'ready', jobs });
+        // Mientras algún job avance solo, programamos la siguiente consulta.
+        if (shouldPoll(jobs))
+          timer = setTimeout(() => setRound((value) => value + 1), pollIntervalMs);
       },
       (error: unknown) => {
         if (cancelled) return;
@@ -36,11 +49,12 @@ export function JobList({ loadJobs = listJobs, refreshKey = 0 }: JobListProps) {
         });
       },
     );
-    // Si el componente se cierra antes de que llegue la respuesta, la ignoramos.
+    // Si el componente se cierra o la carga se relanza, ignoramos la respuesta y cancelamos el temporizador.
     return () => {
       cancelled = true;
+      clearTimeout(timer);
     };
-  }, [loadJobs, round, refreshKey]);
+  }, [loadJobs, round, refreshKey, pollIntervalMs]);
 
   if (state.kind === 'loading') return <p role="status">Cargando jobs…</p>;
 

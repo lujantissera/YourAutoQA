@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ApiError, type JobSummary } from '../lib/api';
 import { JobList } from './job-list';
@@ -85,5 +85,50 @@ describe('JobList', () => {
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
     expect(await screen.findByText('Recuperar contraseña')).toBeInTheDocument();
     expect(loadJobs).toHaveBeenCalledTimes(2);
+  });
+
+  describe('automatic refresh', () => {
+    // Reloj falso: avanzamos el tiempo a mano, sin esperar segundos reales.
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    const advance = (ms: number) =>
+      act(async () => {
+        await vi.advanceTimersByTimeAsync(ms);
+      });
+
+    it('reloads while a job is running and stops once everything has finished', async () => {
+      const loadJobs = vi
+        .fn()
+        .mockResolvedValueOnce([job({ status: 'running', attemptCount: 1 })])
+        .mockResolvedValueOnce([job({ status: 'done', attemptCount: 2 })]);
+
+      render(<JobList loadJobs={loadJobs} pollIntervalMs={3000} />);
+      await advance(0);
+      expect(screen.getByText(/Ejecutando el test/)).toBeInTheDocument();
+      expect(loadJobs).toHaveBeenCalledTimes(1);
+
+      await advance(3000);
+      expect(screen.getByText(/Superado en 2 intentos/)).toBeInTheDocument();
+      expect(loadJobs).toHaveBeenCalledTimes(2);
+
+      // Ya no hay nada en curso: por mucho que pase el tiempo, no vuelve a consultar.
+      await advance(30000);
+      expect(loadJobs).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not reload on a timer when no job is in progress', async () => {
+      const loadJobs = vi.fn().mockResolvedValue([job({ status: 'fail', attemptCount: 5 })]);
+
+      render(<JobList loadJobs={loadJobs} pollIntervalMs={3000} />);
+      await advance(0);
+      await advance(30000);
+
+      expect(loadJobs).toHaveBeenCalledTimes(1);
+    });
   });
 });
