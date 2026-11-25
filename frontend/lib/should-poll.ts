@@ -7,6 +7,7 @@ import type { JobSummary } from './api';
 // de martillear al servidor sin fin por un estado que no conocemos.
 const ACTIVE_STATUSES: ReadonlySet<JobSummary['status']> = new Set(['generating', 'running']);
 
-export function shouldPoll(jobs: JobSummary[]): boolean {
+// Acepta cualquier cosa con `status`: sirve tanto para la lista (JobSummary) como para el detalle.
+export function shouldPoll(jobs: Array<Pick<JobSummary, 'status'>>): boolean {
   return jobs.some((job) => ACTIVE_STATUSES.has(job.status));
 }

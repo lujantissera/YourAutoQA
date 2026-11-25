@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { ApiError, listJobs, type JobSummary } from '../lib/api';
 import { describeJob } from '../lib/describe-job';
@@ -77,7 +78,7 @@ export function JobList({
 
   if (state.jobs.length === 0) {
     return (
-      <p>
+      <p className="empty-state">
         Aún no hay jobs. Genera tu primer test con la clave de una historia de Jira, por ejemplo
         PROJ-123.
       </p>
@@ -92,7 +93,9 @@ export function JobList({
           <li key={job.id} className="job-row">
             <div className="job-title">
               <span className="job-key">{job.issueKey}</span>
-              <h2>{job.summary}</h2>
+              <h2>
+                <Link href={`/jobs/${job.id}`}>{job.summary}</Link>
+              </h2>
             </div>
             <AttemptStrip attempts={view.attempts} max={MAX_ATTEMPTS} />
             <span className="job-status" data-tone={view.tone}>

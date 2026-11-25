@@ -8,11 +8,14 @@ export type JobView = {
   attempts: AttemptCell[];
 };
 
+// Lo mínimo que hace falta de un job: el resumen de la lista y el detalle lo cumplen.
+type JobLike = Pick<JobSummary, 'status' | 'attemptCount'>;
+
 const attemptsWord = (count: number) => `${count} ${count === 1 ? 'intento' : 'intentos'}`;
 
 // El agente solo reintenta cuando un intento falla. Por eso, de los intentos ya terminados, todos
 // fallaron salvo el último de un job superado. Así pintamos la tira sin pedir el detalle al backend.
-function attemptCells(job: JobSummary): AttemptCell[] {
+function attemptCells(job: JobLike): AttemptCell[] {
   return Array.from({ length: job.attemptCount }, (_, index) => {
     const isLast = index === job.attemptCount - 1;
     const result = job.status === 'done' && isLast ? 'PASS' : 'FAIL';
@@ -21,7 +24,7 @@ function attemptCells(job: JobSummary): AttemptCell[] {
 }
 
 // Traduce el resumen de un job a lo que muestra su fila: glifo, texto, color y tira de intentos.
-export function describeJob(job: JobSummary): JobView {
+export function describeJob(job: JobLike): JobView {
   const attempts = attemptCells(job);
 
   switch (job.status) {

@@ -1,31 +1,46 @@
-/* Tokens de color. Todo el diseño sale de estas variables: cambiar de tema es cambiar sus valores. */
+/*
+ * Sistema de diseño de YouAutoQA (generado con UI/UX Pro Max: "Dark Mode OLED" + paleta de operaciones).
+ * Todo sale de estos tokens: cambiar de tema es cambiar sus valores.
+ * Oscuro por defecto (es una herramienta técnica); claro si el sistema lo pide.
+ */
 :root {
-  --bg: #edf1f5;
-  --surface: #f7f9fb;
-  --ink: #14202b;
-  --muted: #5b6b7a;
-  --line: #c9d2db;
-  --pass: #1d7a57;
-  --fail: #b3372d;
-  --wait: #a86a0b;
-  --action: #2748c8;
+  --bg: #020617;
+  --surface: #0e1223;
+  --surface-2: #151a2e;
+  --ink: #f8fafc;
+  --muted: #94a3b8;
+  --line: #263248;
+  --pass: #22c55e;
+  --fail: #f87171;
+  --wait: #fbbf24;
+  --accent: #22c55e;
+  --on-accent: #03140a;
+  --action: #4ade80; /* anillo de foco */
   /* Color del glifo sobre una celda rellena (✓ / ✕). */
-  --on-solid: #ffffff;
+  --on-solid: #020617;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --shadow: 0 1px 0 rgb(255 255 255 / 4%) inset, 0 8px 24px rgb(0 0 0 / 35%);
+  --glow: radial-gradient(60rem 28rem at 50% -10rem, rgb(34 197 94 / 12%), transparent 70%);
 }
 
-/* Tema oscuro automático según el sistema operativo. */
-@media (prefers-color-scheme: dark) {
+@media (prefers-color-scheme: light) {
   :root {
-    --bg: #0f1720;
-    --surface: #16212c;
-    --ink: #e6ebf0;
-    --muted: #93a3b3;
-    --line: #2a3947;
-    --pass: #4cc38a;
-    --fail: #f0766b;
-    --wait: #e0a33b;
-    --action: #7c98ff;
-    --on-solid: #0f1720;
+    --bg: #f4f7fa;
+    --surface: #ffffff;
+    --surface-2: #eef2f6;
+    --ink: #0f172a;
+    --muted: #526071;
+    --line: #d5dde6;
+    --pass: #15803d;
+    --fail: #b91c1c;
+    --wait: #a16207;
+    --accent: #15803d;
+    --on-accent: #ffffff;
+    --action: #15803d;
+    --on-solid: #ffffff;
+    --shadow: 0 1px 2px rgb(15 23 42 / 6%), 0 8px 24px rgb(15 23 42 / 6%);
+    --glow: radial-gradient(60rem 28rem at 50% -10rem, rgb(21 128 61 / 8%), transparent 70%);
   }
 }
 
@@ -33,20 +48,35 @@
   box-sizing: border-box;
 }
 
+html {
+  color-scheme: dark light;
+}
+
 body {
   margin: 0;
-  background: var(--bg);
+  min-height: 100dvh;
+  background: var(--glow), var(--bg);
+  background-repeat: no-repeat;
   color: var(--ink);
   font-family: var(--font-sans), system-ui, sans-serif;
   font-size: 1rem;
-  line-height: 1.5;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
 }
 
 h1,
-h2 {
+h2,
+h3 {
   margin: 0;
   font-weight: 650;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+  transition: color 0.15s ease;
 }
 
 /* Texto solo para lectores de pantalla: presente en el DOM pero invisible. */
@@ -66,10 +96,241 @@ h2 {
   outline-offset: 2px;
 }
 
-/* La tira de intentos: una celda por intento posible. */
+/* ---------- Cabecera de la app ---------- */
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--bg) 80%, transparent);
+  backdrop-filter: blur(12px);
+}
+
+.app-header-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 52rem;
+  margin: 0 auto;
+  padding: 0.75rem 1rem;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.brand-mark {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-family: var(--font-mono), monospace;
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+.brand-tag {
+  color: var(--muted);
+  font-family: var(--font-mono), monospace;
+  font-size: 0.75rem;
+}
+
+/* ---------- Páginas ---------- */
+.page {
+  max-width: 52rem;
+  margin: 0 auto;
+  padding: 2.5rem 1rem 4rem;
+}
+
+.page-head {
+  margin-bottom: 1.5rem;
+}
+
+.page-head h1 {
+  font-size: clamp(1.75rem, 4vw, 2.25rem);
+}
+
+.page-sub {
+  margin: 0.4rem 0 0;
+  color: var(--muted);
+}
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-bottom: 1.25rem;
+  color: var(--muted);
+  font-size: 0.9375rem;
+}
+
+.back-link:hover {
+  color: var(--ink);
+}
+
+/* ---------- Tarjeta base ---------- */
+.card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+/* ---------- Formularios ---------- */
+label {
+  display: block;
+  margin-bottom: 0.4rem;
+  color: var(--muted);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+input,
+textarea {
+  width: 100%;
+  min-height: 44px;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--ink);
+  font: inherit;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+input {
+  font-family: var(--font-mono), monospace;
+}
+
+textarea {
+  resize: vertical;
+}
+
+input::placeholder {
+  color: color-mix(in srgb, var(--muted) 70%, transparent);
+}
+
+input:hover,
+textarea:hover {
+  border-color: color-mix(in srgb, var(--muted) 55%, var(--line));
+}
+
+input:focus-visible,
+textarea:focus-visible {
+  border-color: var(--action);
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--action) 25%, transparent);
+}
+
+input[aria-invalid='true'],
+textarea[aria-invalid='true'] {
+  border-color: var(--fail);
+}
+
+button {
+  min-height: 44px;
+  padding: 0.55rem 1.1rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: var(--on-accent);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    filter 0.15s ease,
+    transform 0.1s ease;
+}
+
+button:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+
+button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+button:disabled {
+  background: var(--surface-2);
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
+.new-job {
+  margin-bottom: 2rem;
+  padding: 1.25rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.new-job-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.new-job-row input {
+  flex: 1 1 14rem;
+  width: auto;
+}
+
+.new-job-error,
+.clarification-error {
+  margin: 0.75rem 0 0;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid color-mix(in srgb, var(--fail) 45%, transparent);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--fail) 12%, transparent);
+  color: var(--fail);
+  font-size: 0.9375rem;
+}
+
+/* ---------- Estados de carga / error / vacío ---------- */
+[role='status'],
+[role='alert'] {
+  color: var(--muted);
+}
+
+div[role='alert'] {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 1px solid color-mix(in srgb, var(--fail) 45%, transparent);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--fail) 10%, transparent);
+  color: var(--fail);
+}
+
+div[role='alert'] p {
+  margin: 0;
+  flex: 1 1 12rem;
+}
+
+.empty-state {
+  padding: 2rem 1.25rem;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius);
+  color: var(--muted);
+  text-align: center;
+}
+
+/* ---------- La tira de intentos: una celda por intento posible ---------- */
 .attempt-strip {
   display: flex;
-  gap: 4px;
+  gap: 6px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -78,12 +339,12 @@ h2 {
 .attempt-strip li {
   display: grid;
   place-items: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 4px;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
   border: 1.5px solid var(--line);
   font-size: 0.8125rem;
-  font-weight: 650;
+  font-weight: 700;
 }
 
 .attempt-strip li[data-result='PASS'] {
@@ -103,57 +364,226 @@ h2 {
   border-style: dashed;
 }
 
-/* Página provisional para ver el diseño. La reemplazaremos por la pantalla real. */
-.page {
-  max-width: 44rem;
-  margin: 0 auto;
-  padding: 2rem 1rem;
-}
-
-.page h1 {
-  font-size: 1.75rem;
-}
-
+/* ---------- Lista de jobs ---------- */
 .job-list {
-  margin: 1.5rem 0 0;
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
   padding: 0;
   list-style: none;
-  border-top: 1px solid var(--line);
 }
 
 .job-row {
   display: grid;
-  gap: 0.5rem;
-  padding: 1rem 0;
-  border-bottom: 1px solid var(--line);
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  transition:
+    border-color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.job-row:hover {
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--line));
+  transform: translateY(-1px);
 }
 
 .job-title {
   display: flex;
-  gap: 0.75rem;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
   align-items: baseline;
 }
 
-.job-key {
-  font-family: var(--font-mono), monospace;
-  font-size: 0.875rem;
-  color: var(--muted);
+.job-title h2 {
+  font-size: 1.0625rem;
 }
 
+.job-title h2 a:hover {
+  color: var(--accent);
+}
+
+.job-key {
+  padding: 0.1rem 0.5rem;
+  border-radius: 6px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-family: var(--font-mono), monospace;
+  font-size: 0.8125rem;
+}
+
+/* Estado como "pastilla" tintada con el color de su tono. */
 .job-status {
+  --tone: var(--muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  justify-self: start;
+  margin: 0;
+  padding: 0.15rem 0.65rem;
+  border: 1px solid color-mix(in srgb, var(--tone) 40%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--tone) 12%, transparent);
+  color: var(--tone);
   font-size: 0.875rem;
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .job-status[data-tone='pass'] {
-  color: var(--pass);
+  --tone: var(--pass);
 }
 .job-status[data-tone='fail'] {
-  color: var(--fail);
+  --tone: var(--fail);
 }
 .job-status[data-tone='wait'] {
-  color: var(--wait);
+  --tone: var(--wait);
 }
 .job-status[data-tone='neutral'] {
+  --tone: var(--muted);
+}
+
+/* ---------- Detalle de un job ---------- */
+.job-detail {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.job-detail > header {
+  display: grid;
+  gap: 0.75rem;
+  justify-items: start;
+  padding: 1.5rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.job-detail h1 {
+  font-size: clamp(1.4rem, 3.5vw, 1.9rem);
+}
+
+.job-meta {
+  margin: 0;
   color: var(--muted);
+  font-family: var(--font-mono), monospace;
+  font-size: 0.8125rem;
+}
+
+.job-failure {
+  margin: 0;
+  padding: 0.9rem 1rem;
+  border: 1px solid color-mix(in srgb, var(--fail) 45%, transparent);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--fail) 10%, transparent);
+  color: var(--fail);
+}
+
+.job-detail section h2 {
+  margin-bottom: 0.75rem;
+  font-size: 1.125rem;
+}
+
+.job-detail details {
+  margin-bottom: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.job-detail summary {
+  padding: 0.85rem 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.job-detail summary:hover {
+  background: var(--surface-2);
+}
+
+.job-detail details[open] > summary {
+  border-bottom: 1px solid var(--line);
+}
+
+.job-detail details h3 {
+  margin: 1rem 1rem 0.4rem;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* Bloques de código y logs: monoespaciado, con scroll horizontal propio. */
+.job-detail pre {
+  margin: 0 1rem 1rem;
+  padding: 0.9rem 1rem;
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  font-family: var(--font-mono), monospace;
+  font-size: 0.8125rem;
+  line-height: 1.6;
+}
+
+/* ---------- Aclaración (RF-9) ---------- */
+.clarification {
+  padding: 1.25rem;
+  border: 1px solid color-mix(in srgb, var(--wait) 50%, transparent);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--wait) 8%, var(--surface));
+}
+
+.clarification-question {
+  margin: 0 0 1rem;
+  font-size: 1.0625rem;
+  font-weight: 600;
+}
+
+.clarification-hint {
+  margin: 0.4rem 0 0;
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.clarification-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.clarification-count {
+  color: var(--muted);
+  font-family: var(--font-mono), monospace;
+  font-size: 0.8125rem;
+}
+
+/* ---------- Movimiento ---------- */
+@media (prefers-reduced-motion: no-preference) {
+  .job-row {
+    animation: rise 0.3s ease both;
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation: none !important;
+  }
 }
