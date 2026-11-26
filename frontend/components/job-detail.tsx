@@ -5,6 +5,7 @@ import { ApiError, clarify as clarifyRequest, getJob, type JobDetail } from '../
 import { describeJob } from '../lib/describe-job';
 import { shouldPoll } from '../lib/should-poll';
 import { AttemptStrip } from './attempt-strip';
+import { useOptionalAuth } from './auth-provider';
 import { ClarificationForm } from './clarification-form';
 
 const MAX_ATTEMPTS = 5;
@@ -34,6 +35,9 @@ export function JobDetailView({
   pollIntervalMs = DEFAULT_POLL_INTERVAL_MS,
 }: JobDetailViewProps) {
   const [state, setState] = useState<State>({ kind: 'loading' });
+  // Contestar al agente exige permiso (US-02): sin él se ve la pregunta pero no la caja de respuesta.
+  const auth = useOptionalAuth();
+  const canClarify = auth ? auth.can('job:clarify') : true;
   // Subir este contador vuelve a pedir el job: lo hace el temporizador y el botón "Reintentar".
   const [round, setRound] = useState(0);
 
@@ -100,7 +104,16 @@ export function JobDetailView({
         <AttemptStrip attempts={cells} max={MAX_ATTEMPTS} />
       </header>
 
-      {job.status === 'awaiting_clarification' && job.question && (
+      {job.status === 'awaiting_clarification' && job.question && !canClarify && (
+        <section className="card" aria-label="Pregunta del agente">
+          <p>{job.question}</p>
+          <p role="note" className="auth-notice">
+            Solo un QA Controller o un Admin puede responder al agente.
+          </p>
+        </section>
+      )}
+
+      {job.status === 'awaiting_clarification' && job.question && canClarify && (
         <ClarificationForm
           jobId={job.id}
           question={job.question}
