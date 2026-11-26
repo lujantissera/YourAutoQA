@@ -71,11 +71,12 @@ export class JobService {
 
   // Lee la US ANTES de crear el job: si Jira falla, el error sube y no queda ningún job (RF-3).
   // El agente corre en segundo plano (RNF-3), así que se devuelve el job sin esperar a que acabe.
-  async createJob(issueKey: string): Promise<Job> {
+  async createJob(issueKey: string, userId?: string): Promise<Job> {
     const story = await this.deps.jira.getUserStory(issueKey);
     const job = await this.deps.repository.create({
       issueKey: story.key,
       summary: story.summary,
+      userId,
     });
 
     this.launch(job.id, { usText: storyToPrompt(story) });
