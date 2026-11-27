@@ -50,6 +50,28 @@ describe('AdminUsers', () => {
     expect(screen.getByLabelText('Rol de Yo Admin')).toHaveValue('Admin');
   });
 
+  it('pone primero a quien espera aprobación y ofrece el rol "Sin acceso (pendiente)"', async () => {
+    const waiting: AdminUser = {
+      id: 'zoe',
+      email: 'zoe@x.com',
+      displayName: 'Zoe',
+      avatarUrl: null,
+      role: 'Pending',
+      createdAt: new Date('2026-11-27T10:00:00Z'),
+    };
+    renderAs(asAdmin(), { loadUsers: async () => [...users, waiting] });
+
+    const selects = await screen.findAllByRole('combobox');
+    // El primero es el de Zoe aunque sea la última de la lista y la más reciente en llegar.
+    expect(selects[0]).toHaveAccessibleName('Rol de Zoe');
+    expect(screen.getByLabelText('Rol de Zoe')).toHaveValue('Pending');
+    expect(
+      within(screen.getByLabelText('Rol de Zoe')).getByRole('option', {
+        name: 'Sin acceso (pendiente)',
+      }),
+    ).toBeInTheDocument();
+  });
+
   it('cambiar el rol de otra persona llama a la API y refleja el rol nuevo', async () => {
     const changeRole = vi.fn(async (id: string, role: AdminUser['role']) => ({
       ...users.find((u) => u.id === id)!,

@@ -1,6 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ApiError, setUnauthorizedHandler } from './api';
-import { getSession, hasPermission, loginErrorMessage, logout, needsLogin } from './auth';
+import {
+  getSession,
+  hasPermission,
+  loginErrorMessage,
+  logout,
+  needsLogin,
+  roleLabel,
+} from './auth';
 
 const jsonResponse = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
@@ -52,6 +59,14 @@ describe('logout', () => {
     vi.stubGlobal('fetch', fetchMock);
     await logout();
     expect(fetchMock).toHaveBeenCalledWith('/api/auth/logout', { method: 'POST' });
+  });
+});
+
+describe('roleLabel', () => {
+  it('Pending se muestra como "Sin acceso (pendiente)" y el resto con su nombre', () => {
+    expect(roleLabel('Pending')).toBe('Sin acceso (pendiente)');
+    expect(roleLabel('Admin')).toBe('Admin');
+    expect(roleLabel('QA Executer')).toBe('QA Executer');
   });
 });
 

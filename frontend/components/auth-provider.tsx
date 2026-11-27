@@ -3,6 +3,7 @@
 import { usePathname, useRouter } from 'next/navigation';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { setUnauthorizedHandler } from '../lib/api';
+import { PendingApproval } from './pending-approval';
 import {
   getSession,
   hasPermission,
@@ -120,6 +121,20 @@ export function AuthProvider({
           Cargando…
         </p>
       </main>
+    );
+  }
+  // Una cuenta nueva existe pero aún no tiene permisos (D-64): en vez del contenido, una pantalla
+  // que lo explica. El backend ya responde 403 a todo, esto solo evita pantallas llenas de errores.
+  if (value.user.role === 'Pending') {
+    return (
+      <PendingApproval
+        email={value.user.email}
+        onRecheck={() => {
+          setState({ kind: 'loading' });
+          setAttempt((n) => n + 1);
+        }}
+        onSignOut={() => void signOut()}
+      />
     );
   }
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

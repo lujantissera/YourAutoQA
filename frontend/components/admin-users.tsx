@@ -7,7 +7,7 @@ import {
   type AdminUser,
 } from '../lib/admin';
 import { ApiError } from '../lib/api';
-import { ROLES, type Role } from '../lib/auth';
+import { ROLES, roleLabel, type Role } from '../lib/auth';
 import { useAuth } from './auth-provider';
 
 type AdminUsersProps = {
@@ -23,6 +23,11 @@ const CHANGE_ERRORS: Record<string, string> = {
   cannot_change_own_role: 'No puedes cambiar tu propio rol.',
   user_not_found: 'Ese usuario ya no existe.',
 };
+
+// Quien espera aprobación va arriba: es lo primero que un Admin necesita ver. `sort` es estable,
+// así que el resto conserva su orden.
+const pendingFirst = (a: AdminUser, b: AdminUser): number =>
+  Number(b.role === 'Pending') - Number(a.role === 'Pending');
 
 function changeErrorMessage(error: unknown): string {
   if (error instanceof ApiError && Object.hasOwn(CHANGE_ERRORS, error.code)) {
@@ -121,7 +126,7 @@ export function AdminUsers({
           </tr>
         </thead>
         <tbody>
-          {state.users.map((user) => {
+          {[...state.users].sort(pendingFirst).map((user) => {
             const isMe = user.id === auth.user.id;
             return (
               <tr key={user.id}>
@@ -140,7 +145,7 @@ export function AdminUsers({
                   >
                     {ROLES.map((role) => (
                       <option key={role} value={role}>
-                        {role}
+                        {roleLabel(role)}
                       </option>
                     ))}
                   </select>
