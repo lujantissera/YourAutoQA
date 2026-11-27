@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { roleLabel } from '../lib/auth';
 import { useOptionalAuth } from './auth-provider';
 
 // Quién soy y cómo salir, en la cabecera. Sin sesión (pantalla de login) no pinta nada.
@@ -17,7 +18,7 @@ export function UserMenu() {
         </Link>
       )}
       <span className="user-name">{auth.user.displayName}</span>
-      <span className="user-role">{auth.user.role}</span>
+      <span className="user-role">{roleLabel(auth.user.role)}</span>
       <button type="button" className="user-signout" onClick={() => void auth.signOut()}>
         Cerrar sesión
       </button>

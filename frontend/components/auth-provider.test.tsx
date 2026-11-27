@@ -6,9 +6,12 @@ import { setUnauthorizedHandler } from '../lib/api';
 import { AuthProvider, useAuth } from './auth-provider';
 
 const replace = vi.fn();
+const router = { replace };
 let pathname = '/';
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ replace }),
+  // El mismo objeto en cada render, como el router real de Next: si cambiara, los efectos que lo
+  // usan como dependencia se repetirían sin parar.
+  useRouter: () => router,
   usePathname: () => pathname,
 }));
 
@@ -47,6 +50,41 @@ describe('AuthProvider', () => {
     expect(screen.getByText('puede crear')).toBeInTheDocument();
     expect(screen.getByText('no es admin')).toBeInTheDocument();
     expect(replace).not.toHaveBeenCalled();
+  });
+
+  it('una cuenta Pending ve la pantalla de espera en vez del contenido (D-64)', async () => {
+    const pending: Session = {
+      user: { ...session.user, role: 'Pending' },
+      permissions: [],
+    };
+    render(
+      <AuthProvider loadSession={async () => pending}>
+        <p>contenido privado</p>
+      </AuthProvider>,
+    );
+
+    expect(
+      await screen.findByRole('heading', { name: /pendiente de aprobación/i }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText('contenido privado')).not.toBeInTheDocument();
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it('"Comprobar de nuevo" deja pasar en cuanto un Admin ha asignado un rol', async () => {
+    const pending: Session = { user: { ...session.user, role: 'Pending' }, permissions: [] };
+    const loadSession = vi
+      .fn<() => Promise<Session | null>>()
+      .mockResolvedValueOnce(pending)
+      .mockResolvedValueOnce(session);
+    render(
+      <AuthProvider loadSession={loadSession}>
+        <p>contenido privado</p>
+      </AuthProvider>,
+    );
+
+    await userEvent.click(await screen.findByRole('button', { name: /comprobar de nuevo/i }));
+
+    expect(await screen.findByText('contenido privado')).toBeInTheDocument();
   });
 
   it('sin sesión lleva al login y no enseña el contenido (US-01.1)', async () => {

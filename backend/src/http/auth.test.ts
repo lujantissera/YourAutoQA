@@ -231,6 +231,62 @@ describe('permisos por rol en la API (US-02.5)', () => {
     }
   });
 
+  describe('Pending (cuenta sin aprobar, D-64)', () => {
+    it('puede saber quién es, pero no tiene ningún permiso', async () => {
+      const { app, loginAs } = setup();
+      const { cookie } = await loginAs('code-ana', 'Pending');
+
+      const res = await request(app).get('/auth/me').set('Cookie', cookie);
+
+      expect(res.status).toBe(200);
+      expect(res.body.user.role).toBe('Pending');
+      expect(res.body.permissions).toEqual([]);
+    });
+
+    it('recibe 403 hasta para leer los jobs, y no puede crear ni administrar', async () => {
+      const { app, jira, loginAs } = setup();
+      const { cookie } = await loginAs('code-ana', 'Pending');
+
+      expect((await request(app).get('/jobs').set('Cookie', cookie)).status).toBe(403);
+      expect((await request(app).get('/jobs/abc').set('Cookie', cookie)).status).toBe(403);
+      const create = await request(app)
+        .post('/jobs')
+        .set('Cookie', cookie)
+        .send({ issueKey: 'YAQ-1' });
+      expect(create.status).toBe(403);
+      expect((await request(app).get('/admin/users').set('Cookie', cookie)).status).toBe(403);
+      expect(jira.calls).toEqual([]);
+    });
+
+    it('un Admin lo aprueba cambiándole el rol y entonces ya puede leer', async () => {
+      const { app, loginAs } = setup();
+      const admin = await loginAs('code-ana', 'Admin');
+      const bob = await loginAs('code-bob', 'Pending');
+
+      const res = await request(app)
+        .patch(`/admin/users/${bob.userId}/role`)
+        .set('Cookie', admin.cookie)
+        .send({ role: 'QA Executer' });
+
+      expect(res.status).toBe(200);
+      expect((await request(app).get('/jobs').set('Cookie', bob.cookie)).status).toBe(200);
+    });
+
+    it('un Admin puede volver a dejar a alguien en Pending (revocar el acceso)', async () => {
+      const { app, loginAs } = setup();
+      const admin = await loginAs('code-ana', 'Admin');
+      const bob = await loginAs('code-bob', 'QA Controller');
+
+      const res = await request(app)
+        .patch(`/admin/users/${bob.userId}/role`)
+        .set('Cookie', admin.cookie)
+        .send({ role: 'Pending' });
+
+      expect(res.status).toBe(200);
+      expect((await request(app).get('/jobs').set('Cookie', bob.cookie)).status).toBe(403);
+    });
+  });
+
   describe('QA Executer (solo lectura)', () => {
     it('puede ver la lista y el detalle', async () => {
       const { app, loginAs } = setup();

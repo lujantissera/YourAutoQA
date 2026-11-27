@@ -1,7 +1,11 @@
 import { readError } from './api';
 
-export const ROLES = ['Admin', 'QA Controller', 'QA Executer'] as const;
+export const ROLES = ['Admin', 'QA Controller', 'QA Executer', 'Pending'] as const;
 export type Role = (typeof ROLES)[number];
+
+// El valor `Pending` es el del backend; a la persona usuaria se le enseña algo que se entienda.
+export const roleLabel = (role: Role): string =>
+  role === 'Pending' ? 'Sin acceso (pendiente)' : role;
 export type Action = 'job:read' | 'job:create' | 'job:clarify' | 'admin:manage';
 
 // Lo que devuelve GET /auth/me. `permissions` lo calcula el backend a partir del rol: la interfaz
