@@ -62,6 +62,14 @@ export function describeAuthRepositoryContract(
         expect(user.id).toBe(uuid(1));
       });
 
+      it('acepta el rol Pending: es el que reciben los usuarios nuevos (D-64)', async () => {
+        const repo = await open();
+        const user = await repo.upsertUser(profile, 'Pending');
+        expect(user.role).toBe('Pending');
+        expect((await repo.setRole(user.id, 'QA Executer'))?.role).toBe('QA Executer');
+        expect((await repo.setRole(user.id, 'Pending'))?.role).toBe('Pending');
+      });
+
       it('la segunda vez devuelve el mismo usuario y NO cambia su rol', async () => {
         const repo = await open();
         const first = await repo.upsertUser(profile, 'QA Executer');

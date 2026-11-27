@@ -3,15 +3,19 @@ import { ACTIONS, DEFAULT_ROLE, ROLES, can, isRole, type Action, type Role } fro
 
 // La matriz de US-02, escrita como tabla: una fila por acción y qué roles pueden hacerla.
 const EXPECTED: Record<Action, Record<Role, boolean>> = {
-  'job:read': { Admin: true, 'QA Controller': true, 'QA Executer': true },
-  'job:create': { Admin: true, 'QA Controller': true, 'QA Executer': false },
-  'job:clarify': { Admin: true, 'QA Controller': true, 'QA Executer': false },
-  'admin:manage': { Admin: true, 'QA Controller': false, 'QA Executer': false },
+  'job:read': { Admin: true, 'QA Controller': true, 'QA Executer': true, Pending: false },
+  'job:create': { Admin: true, 'QA Controller': true, 'QA Executer': false, Pending: false },
+  'job:clarify': { Admin: true, 'QA Controller': true, 'QA Executer': false, Pending: false },
+  'admin:manage': { Admin: true, 'QA Controller': false, 'QA Executer': false, Pending: false },
 };
 
 describe('roles', () => {
-  it('el rol por defecto es QA Executer, el de menos privilegios (D-25)', () => {
-    expect(DEFAULT_ROLE).toBe('QA Executer');
+  it('el rol por defecto es Pending: sin acceso hasta que un Admin lo apruebe (D-64)', () => {
+    expect(DEFAULT_ROLE).toBe('Pending');
+  });
+
+  it('Pending no puede hacer ninguna acción', () => {
+    for (const action of ACTIONS) expect(can('Pending', action)).toBe(false);
   });
 
   it('isRole acepta los tres roles y rechaza cualquier otro texto', () => {

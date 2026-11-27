@@ -11,10 +11,10 @@ const profile = (email: string): ExternalProfile => ({
 });
 
 describe('resolveInitialRole', () => {
-  it('un usuario cualquiera entra con el rol por defecto, QA Executer (D-25)', () => {
-    expect(resolveInitialRole(profile('nadie@x.com'), { adminEmails: [] })).toBe('QA Executer');
+  it('un usuario cualquiera entra como Pending, sin acceso (D-64)', () => {
+    expect(resolveInitialRole(profile('nadie@x.com'), { adminEmails: [] })).toBe('Pending');
     expect(resolveInitialRole(profile('nadie@x.com'), { adminEmails: ['otro@x.com'] })).toBe(
-      'QA Executer',
+      'Pending',
     );
   });
 
@@ -25,7 +25,7 @@ describe('resolveInitialRole', () => {
   });
 
   it('un email vacío (el usuario lo oculta en Atlassian) nunca es Admin', () => {
-    expect(resolveInitialRole(profile(''), { adminEmails: [''] })).toBe('QA Executer');
-    expect(resolveInitialRole(profile(''), { adminEmails: ['lujan@x.com'] })).toBe('QA Executer');
+    expect(resolveInitialRole(profile(''), { adminEmails: [''] })).toBe('Pending');
+    expect(resolveInitialRole(profile(''), { adminEmails: ['lujan@x.com'] })).toBe('Pending');
   });
 });

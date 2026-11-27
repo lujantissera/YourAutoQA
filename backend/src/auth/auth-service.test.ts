@@ -38,11 +38,11 @@ describe('AuthService', () => {
   });
 
   describe('completeLogin', () => {
-    it('crea el usuario con rol QA Executer y abre una sesión (US-01.2, US-01.3)', async () => {
+    it('crea el usuario con rol Pending y abre una sesión (US-01.2, US-01.3)', async () => {
       const { service } = setup();
       const { token, user } = await service.completeLogin('good');
 
-      expect(user).toMatchObject({ email: 'ana@x.com', role: 'QA Executer' });
+      expect(user).toMatchObject({ email: 'ana@x.com', role: 'Pending' });
       expect((await service.authenticate(token))?.id).toBe(user.id);
     });
 
