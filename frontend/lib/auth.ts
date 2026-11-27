@@ -1,6 +1,7 @@
 import { readError } from './api';
 
-export type Role = 'Admin' | 'QA Controller' | 'QA Executer';
+export const ROLES = ['Admin', 'QA Controller', 'QA Executer'] as const;
+export type Role = (typeof ROLES)[number];
 export type Action = 'job:read' | 'job:create' | 'job:clarify' | 'admin:manage';
 
 // Lo que devuelve GET /auth/me. `permissions` lo calcula el backend a partir del rol: la interfaz

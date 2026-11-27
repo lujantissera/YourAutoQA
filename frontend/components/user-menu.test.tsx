@@ -39,6 +39,29 @@ describe('UserMenu', () => {
     expect(signOut).toHaveBeenCalled();
   });
 
+  it('un QA Executer no ve el enlace a Administración (US-02.1)', () => {
+    render(
+      <AuthContext.Provider value={value()}>
+        <UserMenu />
+      </AuthContext.Provider>,
+    );
+    expect(screen.queryByRole('link', { name: /administración/i })).not.toBeInTheDocument();
+  });
+
+  it('un Admin ve el enlace a Administración', () => {
+    const admin: AuthValue = {
+      ...value(),
+      permissions: ['job:read', 'admin:manage'],
+      can: (action) => ['job:read', 'admin:manage'].includes(action),
+    };
+    render(
+      <AuthContext.Provider value={admin}>
+        <UserMenu />
+      </AuthContext.Provider>,
+    );
+    expect(screen.getByRole('link', { name: /administración/i })).toHaveAttribute('href', '/admin');
+  });
+
   it('sin sesión (pantalla de login) no pinta nada', () => {
     const { container } = render(<UserMenu />);
     expect(container).toBeEmptyDOMElement();
