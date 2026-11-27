@@ -1,0 +1,105 @@
+# CI de YourAutoQA: se ejecuta en cada Pull Request y en cada push a main.
+# Idea: nadie debería poder fusionar código que no pasa lint, tipos y tests.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# El script "prepare" de package.json instala Husky (los hooks de pre-commit). En CI no se hacen
+# commits, así que se desactiva con HUSKY=0.
+env:
+  HUSKY: 0
+
+# Mínimo privilegio: estos jobs solo necesitan LEER el repositorio. Sin esta línea, el token que
+# GitHub da a cada ejecución tendría permisos de escritura por defecto en algunos repositorios.
+permissions:
+  contents: read
+
+# Si subes otro commit a la misma rama mientras corre el CI, cancela la ejecución anterior:
+# ahorra minutos y no queda un resultado viejo.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (lint, tipos y tests)
+    runs-on: ubuntu-latest
+    steps:
+      # Descarga el código del repositorio en la máquina de CI.
+      - uses: actions/checkout@v4
+
+      # Instala Node 22 (el mismo que pide "engines" en package.json) y guarda en caché las
+      # descargas de npm para que la próxima ejecución sea más rápida.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # `npm ci` instala EXACTAMENTE lo que dice package-lock.json (reproducible), a diferencia
+      # de `npm install`, que puede actualizar versiones.
+      - run: npm ci
+
+      - run: npm run lint --workspace backend
+      - run: npm run typecheck --workspace backend
+      # Tests unitarios: sin base de datos, sin Docker y sin llamar nunca al LLM real.
+      - run: npm test --workspace backend
+
+  backend-integration:
+    name: Backend (integración con Postgres)
+    runs-on: ubuntu-latest
+
+    # GitHub arranca un contenedor de Postgres junto al job y espera a que esté sano.
+    # Es el mismo Postgres 17 que usa docker-compose.yml en local.
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: youautoqa
+          POSTGRES_PASSWORD: youautoqa
+          POSTGRES_DB: youautoqa
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U youautoqa"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      # Los tests leen la dirección de la base de datos de esta variable (db/config.ts).
+      DATABASE_URL: postgres://youautoqa:youautoqa@localhost:5432/youautoqa
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      # Solo los tests de integración que necesitan Postgres (migraciones, repositorios de jobs y
+      # de usuarios, reanudar un job). Se dejan fuera a propósito el runner de Docker (necesita la
+      # imagen de Robot Framework) y el de OpenAI (necesita una clave y gasta dinero).
+      - run: npx vitest run postgres-job-repository postgres-auth-repository migrate job-resume
+        working-directory: backend
+
+  frontend:
+    name: Frontend (lint, tipos, tests y build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      - run: npm run lint --workspace frontend
+      - run: npm run typecheck --workspace frontend
+      - run: npm test --workspace frontend
+      # `next build` compila de verdad la aplicación (incluido proxy.ts): detecta errores que ni
+      # los tipos ni los tests de componentes ven.
+      - run: npm run build --workspace frontend
