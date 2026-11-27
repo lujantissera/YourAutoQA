@@ -1,24 +1,19 @@
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import type { JobDetail } from '../lib/api';
 import type { Action } from '../lib/auth';
 import { AuthContext, type AuthValue } from './auth-provider';
 import { JobDetailView } from './job-detail';
-import { JobsPanel } from './jobs-panel';
 
 // La interfaz esconde lo que el rol no puede hacer (US-02.1). Es comodidad: el backend lo vuelve a
-// comprobar con un 403 (auth.test.ts del backend).
+// comprobar con un 403 (auth.test.ts del backend). Crear tests lo prueban create-test.test.tsx y
+// app-shell.test.tsx; aquí, la caja de respuesta al agente.
 const as = (permissions: Action[]): AuthValue => ({
   user: { id: 'u', email: 'a@x.com', displayName: 'Ana', avatarUrl: null, role: 'QA Executer' },
   permissions,
   can: (action) => permissions.includes(action),
   signOut: async () => undefined,
 });
-
-vi.mock('../lib/api', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../lib/api')>()),
-  listJobs: async () => [],
-}));
 
 const paused: JobDetail = {
   id: 'j1',
@@ -33,24 +28,6 @@ const paused: JobDetail = {
 };
 
 describe('visibilidad por rol', () => {
-  it('un QA Executer no ve el formulario de crear jobs', () => {
-    render(
-      <AuthContext.Provider value={as(['job:read'])}>
-        <JobsPanel />
-      </AuthContext.Provider>,
-    );
-    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
-  });
-
-  it('un QA Controller sí lo ve', () => {
-    render(
-      <AuthContext.Provider value={as(['job:read', 'job:create'])}>
-        <JobsPanel />
-      </AuthContext.Provider>,
-    );
-    expect(screen.getByRole('textbox')).toBeInTheDocument();
-  });
-
   it('un QA Executer ve la pregunta del agente pero no puede responder', async () => {
     render(
       <AuthContext.Provider value={as(['job:read'])}>

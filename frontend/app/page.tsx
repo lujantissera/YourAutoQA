@@ -1,15 +1,6 @@
-import { JobsPanel } from '../components/jobs-panel';
+import { Dashboard } from '../components/dashboard';
 
+// La portada es el panel de Inicio (RF-7): resumen, lo que espera tu respuesta y actividad reciente.
 export default function Home() {
-  return (
-    <main className="page">
-      <div className="page-head">
-        <h1>Jobs</h1>
-        <p className="page-sub">
-          Genera tests de Robot Framework desde una historia de Jira y deja que el agente los corrija.
-        </p>
-      </div>
-      <JobsPanel />
-    </main>
-  );
+  return <Dashboard />;
 }
