@@ -335,8 +335,8 @@ Las 17 historias cubren los 9 requisitos funcionales y los 8 no funcionales; la 
 
 | US | Título | Requisito | Prioridad | Fase | Estado |
 | --- | --- | --- | --- | --- | --- |
-| US-01 | Iniciar sesión con Atlassian | RF-1, RNF-7 | Must | 5 | Pendiente |
-| US-02 | Ver y usar solo lo que mi rol permite | RF-2 | Must | 5 | Pendiente |
+| US-01 | Iniciar sesión con Atlassian | RF-1, RNF-7 | Must | 5 | Hecho 6/6 (login real probado; el 4 y el 5 con tests, sin prueba manual) |
+| US-02 | Ver y usar solo lo que mi rol permite | RF-2 | Must | 5 | Parcial 3/6 (hechos 1, 3 y 5: 403 real probado; 2, 4 y 6 esperan la edición de tests, la pantalla de Administración y la re-ejecución) |
 | US-03 | Buscar una US de Jira por su ID | RF-3 | Must | 2 | Parcial 2/6 |
 | US-04 | Error claro si la US no existe o sin permisos | RF-3 | Must | 2 | Parcial 3/6 |
 | US-05 | Generar un test `.robot` desde una US | RF-4 | Must | 1 | Parcial 5/6 |
@@ -346,7 +346,7 @@ Las 17 historias cubren los 9 requisitos funcionales y los 8 no funcionales; la 
 | US-09 | Ver el detalle de cada intento y sus logs | RF-7, RNF-4 | Should | 4 | Pendiente |
 | US-10 | El agente pregunta cuando falta información | RF-9, RNF-1 | Must | 1 | Hecho en código 7/7 |
 | US-11 | Responder por chat y continuar | RF-9, RF-7 | Must | 3 y 4 | Parcial 4/9 |
-| US-12 | Administrar usuarios, roles y límites | RF-2, RF-7, RNF-1, RNF-2, RNF-6 | Should | 4 y 5 | Pendiente |
+| US-12 | Administrar usuarios, roles y límites | RF-2, RF-7, RNF-1, RNF-2, RNF-6 | Should | 4 y 5 | Parcial (API de usuarios y cambio de rol hecha, D-59; falta la pantalla y los límites) |
 | US-13 | Reutilizar keywords y ejemplos (RAG) | RF-8 | Could | 8 | Pendiente |
 | TS-01 | Proteger frente a entradas no confiables | Seguridad (nuevo) | Must | 1 a 7 | Parcial |
 | TS-02 | Controlar y medir el coste | RNF-1, RNF-5 | Should | 1 y 3 | Parcial 3/4 |

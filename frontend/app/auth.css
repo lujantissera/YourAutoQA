@@ -1,0 +1,78 @@
+/* Estilos del login y del menú de usuario. Usan los tokens de globals.css (claro y oscuro). */
+.login-page {
+  display: grid;
+  place-items: center;
+  min-height: 60vh;
+}
+
+.login-card {
+  width: min(100%, 26rem);
+  display: grid;
+  gap: 1rem;
+  padding: 2rem;
+}
+
+.login-button {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 44px; /* objetivo táctil cómodo */
+  padding: 0 1.25rem;
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.login-button:hover {
+  filter: brightness(1.08);
+}
+
+.login-button:focus-visible,
+.user-signout:focus-visible {
+  outline: 2px solid var(--action);
+  outline-offset: 2px;
+}
+
+.login-hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.auth-notice {
+  margin: 0;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--wait);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+
+.auth-notice[data-tone='fail'] {
+  border-left-color: var(--fail);
+}
+
+.user-menu {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.user-name {
+  font-weight: 600;
+}
+
+.user-role {
+  padding: 0.125rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.user-signout {
+  min-height: 36px;
+}

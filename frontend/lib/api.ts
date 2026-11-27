@@ -22,7 +22,20 @@ export class ApiError extends Error {
   }
 }
 
-async function readError(response: Response): Promise<ApiError> {
+// Quien quiera enterarse de que la sesión caducó (una petición recibió 401) se registra aquí. Lo
+// hace AuthProvider para llevar al login (US-01.5); así ninguna pantalla repite esa lógica.
+let unauthorizedHandler: (() => void) | null = null;
+
+export function setUnauthorizedHandler(handler: (() => void) | null): void {
+  unauthorizedHandler = handler;
+}
+
+export function notifyUnauthorized(): void {
+  unauthorizedHandler?.();
+}
+
+export async function readError(response: Response): Promise<ApiError> {
+  if (response.status === 401) notifyUnauthorized();
   try {
     const body = (await response.json()) as { error?: { code?: string; message?: string } };
     return new ApiError(

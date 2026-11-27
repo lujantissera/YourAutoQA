@@ -6,6 +6,10 @@ import { PostgresSaver } from '@langchain/langgraph-checkpoint-postgres';
 import OpenAI from 'openai';
 import { Pool } from 'pg';
 import { loadAgentConfig } from './agent/config.js';
+import { AtlassianOAuth } from './auth/atlassian-oauth.js';
+import { AuthService } from './auth/auth-service.js';
+import { loadAuthConfig } from './auth/config.js';
+import { PostgresAuthRepository } from './auth/postgres-auth-repository.js';
 import { buildGraph } from './agent/graph.js';
 import { loadDatabaseUrl } from './db/config.js';
 import { migrate } from './db/migrate.js';
@@ -26,8 +30,8 @@ try {
   // sin .env: puede que las variables ya vengan del entorno
 }
 
-// Hasta la Fase 5 la API no tiene login: escucha solo en este equipo (no en toda la red) para que
-// nadie más pueda crear jobs y gastar tokens de OpenAI.
+// La API ya exige login (Fase 5), pero sigue escuchando solo en este equipo, no en toda la red: el
+// acceso desde fuera lo dará el despliegue (Fase 7), con HTTPS.
 const HOST = '127.0.0.1';
 const port = Number(process.env.PORT ?? 3000);
 if (!Number.isInteger(port) || port < 1 || port > 65_535) {
@@ -77,6 +81,20 @@ if (interrupted > 0) {
 `);
 }
 
-createApp({ jobService, onError: logError }).listen(port, HOST, () => {
+// Login con Atlassian (OAuth 2.0 3LO). El secreto solo sale del entorno (.env), nunca del código.
+const authConfig = loadAuthConfig(process.env);
+const authService = new AuthService({
+  repository: new PostgresAuthRepository(pool),
+  atlassian: new AtlassianOAuth(authConfig),
+  sessionTtlHours: authConfig.sessionTtlHours,
+  adminEmails: authConfig.adminEmails,
+});
+
+createApp({
+  jobService,
+  authService,
+  cookieSecure: authConfig.cookieSecure,
+  onError: logError,
+}).listen(port, HOST, () => {
   process.stdout.write(`API listening on http://${HOST}:${port}\n`);
 });

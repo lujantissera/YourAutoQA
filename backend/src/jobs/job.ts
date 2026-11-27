@@ -24,6 +24,8 @@ export type JobSummary = Pick<
 export interface NewJob {
   issueKey: string;
   summary: string;
+  /** Quién lo crea (jobs.user_id). Sin valor para los jobs hechos desde scripts o antes del login. */
+  userId?: string;
 }
 
 // Lo que puede cambiar después de crearlo. `id`, `issueKey`, `summary` y `createdAt` no cambian nunca.

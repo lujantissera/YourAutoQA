@@ -69,8 +69,9 @@ export class PostgresJobRepository implements JobRepository {
   async create(input: NewJob): Promise<Job> {
     const id = this.newId();
     await this.pool.query(
-      `INSERT INTO jobs (id, issue_key, summary, status, created_at) VALUES ($1, $2, $3, $4, $5)`,
-      [id, input.issueKey, input.summary, 'generating', this.now()],
+      `INSERT INTO jobs (id, issue_key, summary, status, created_at, user_id)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [id, input.issueKey, input.summary, 'generating', this.now(), input.userId ?? null],
     );
     return this.mustGet(id);
   }

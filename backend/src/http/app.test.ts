@@ -1,14 +1,19 @@
+import express from 'express';
 import request from 'supertest';
 import { describe, expect, it, vi } from 'vitest';
 import type { AgentConfig } from '../agent/config.js';
 import { buildGraph } from '../agent/graph.js';
 import type { JiraPort, RunResult, UserStory } from '../agent/ports.js';
 import { FakeLlm, FakeRunner } from '../agent/testing/fakes.js';
+import { AuthService } from '../auth/auth-service.js';
+import { InMemoryAuthRepository } from '../auth/in-memory-auth-repository.js';
+import { FakeAtlassian } from '../auth/testing/fakes.js';
 import { JiraError, type JiraErrorKind } from '../jira/errors.js';
 import { FakeJira } from '../jira/testing/fakes.js';
 import { InMemoryJobRepository } from '../jobs/in-memory-job-repository.js';
 import { JobService } from '../jobs/job-service.js';
 import { createApp } from './app.js';
+import { SESSION_COOKIE } from './cookies.js';
 
 const story: UserStory = {
   key: 'YAQ-1',
@@ -38,7 +43,7 @@ interface SetupOptions {
 
 // La aplicación completa con el servicio real y dobles de Jira, LLM y runner. `supertest` hace las
 // peticiones directamente a `app`, sin abrir ningún puerto.
-function setup(options: SetupOptions = {}) {
+async function setup(options: SetupOptions = {}) {
   const graph = buildGraph({
     llm: new FakeLlm(options.llmTexts ?? ['*** Test Cases ***\nTest 1']),
     runner: new FakeRunner(options.runs ?? [pass]),
@@ -49,7 +54,30 @@ function setup(options: SetupOptions = {}) {
     repository: new InMemoryJobRepository(),
     graph,
   });
-  const app = createApp({ jobService, onError: options.onError });
+  // Estos tests son de los jobs, no del login: hay un usuario con rol QA Controller ya con sesión y
+  // un envoltorio que añade su cookie a cada petición. (Los permisos se prueban en auth.test.ts.)
+  const authRepository = new InMemoryAuthRepository();
+  const authService = new AuthService({
+    repository: authRepository,
+    atlassian: new FakeAtlassian({
+      tester: {
+        provider: 'atlassian',
+        providerAccountId: 'tester',
+        email: 'tester@x.com',
+        displayName: 'Tester',
+        avatarUrl: null,
+      },
+    }),
+    sessionTtlHours: 12,
+    adminEmails: [],
+  });
+  const { token, user } = await authService.completeLogin('tester');
+  await authRepository.setRole(user.id, 'QA Controller');
+  const inner = createApp({ jobService, authService, onError: options.onError });
+  const app = express().use((req, _res, next) => {
+    req.headers.cookie = `${SESSION_COOKIE}=${token}`;
+    next();
+  }, inner);
   return { app, jobService };
 }
 
@@ -62,7 +90,7 @@ const failingJira = (error: unknown): JiraPort => ({
 
 describe('POST /jobs (RF-3, RNF-3)', () => {
   it('con una clave válida responde 202 con el job y la cabecera Location', async () => {
-    const { app, jobService } = setup();
+    const { app, jobService } = await setup();
 
     const response = await request(app).post('/jobs').send({ issueKey: 'YAQ-1' });
     await jobService.idle();
@@ -77,7 +105,7 @@ describe('POST /jobs (RF-3, RNF-3)', () => {
   });
 
   it('una clave con formato inválido responde 400 invalid_key (US-03.4)', async () => {
-    const { app } = setup();
+    const { app } = await setup();
 
     const response = await request(app).post('/jobs').send({ issueKey: 'no es una clave' });
 
@@ -86,7 +114,7 @@ describe('POST /jobs (RF-3, RNF-3)', () => {
   });
 
   it('una US que no existe responde 404 not_found (US-04.1)', async () => {
-    const { app } = setup();
+    const { app } = await setup();
 
     const response = await request(app).post('/jobs').send({ issueKey: 'YAQ-999' });
 
@@ -100,7 +128,7 @@ describe('POST /jobs (RF-3, RNF-3)', () => {
   ])(
     'un error de Jira %s responde %i con nuestro mensaje (US-04.2, US-04.5)',
     async (kind, status) => {
-      const { app } = setup({ jira: failingJira(new JiraError(kind, 'Mensaje limpio')) });
+      const { app } = await setup({ jira: failingJira(new JiraError(kind, 'Mensaje limpio')) });
 
       const response = await request(app).post('/jobs').send({ issueKey: 'YAQ-1' });
 
@@ -112,7 +140,7 @@ describe('POST /jobs (RF-3, RNF-3)', () => {
   it.each([{}, { issueKey: 42 }, { issueKey: null }, undefined])(
     'un cuerpo sin issueKey de texto responde 400 invalid_request: %j',
     async (body) => {
-      const { app } = setup();
+      const { app } = await setup();
 
       const response = await request(app).post('/jobs').send(body);
 
@@ -122,7 +150,7 @@ describe('POST /jobs (RF-3, RNF-3)', () => {
   );
 
   it('un JSON mal formado responde 400 invalid_request', async () => {
-    const { app } = setup();
+    const { app } = await setup();
 
     const response = await request(app)
       .post('/jobs')
@@ -136,7 +164,7 @@ describe('POST /jobs (RF-3, RNF-3)', () => {
   it('una excepción inesperada responde 500 con un mensaje genérico y avisa a onError (US-04.6)', async () => {
     const original = new Error('boom: secret-detail');
     const onError = vi.fn();
-    const { app } = setup({ jira: failingJira(original), onError });
+    const { app } = await setup({ jira: failingJira(original), onError });
 
     const response = await request(app).post('/jobs').send({ issueKey: 'YAQ-1' });
 
@@ -149,7 +177,7 @@ describe('POST /jobs (RF-3, RNF-3)', () => {
 
 describe('GET /jobs/:id', () => {
   it('devuelve el job con su estado actual (US-07.5)', async () => {
-    const { app, jobService } = setup();
+    const { app, jobService } = await setup();
     const created = await request(app).post('/jobs').send({ issueKey: 'YAQ-1' });
     await jobService.idle();
 
@@ -161,7 +189,7 @@ describe('GET /jobs/:id', () => {
   });
 
   it('con un id desconocido responde 404 job_not_found', async () => {
-    const { app } = setup();
+    const { app } = await setup();
 
     const response = await request(app).get('/jobs/no-existe');
 
@@ -172,7 +200,7 @@ describe('GET /jobs/:id', () => {
 
 describe('GET /jobs', () => {
   it('sin jobs responde 200 con una lista vacía', async () => {
-    const { app } = setup();
+    const { app } = await setup();
 
     const response = await request(app).get('/jobs');
 
@@ -182,7 +210,7 @@ describe('GET /jobs', () => {
 
   it('devuelve los jobs del más reciente al más antiguo, solo con el resumen', async () => {
     const robot = '*** Test Cases ***\nTest 1';
-    const { app, jobService } = setup({ llmTexts: [robot, robot], runs: [pass, pass] });
+    const { app, jobService } = await setup({ llmTexts: [robot, robot], runs: [pass, pass] });
     const first = await request(app).post('/jobs').send({ issueKey: 'YAQ-1' });
     const second = await request(app).post('/jobs').send({ issueKey: 'YAQ-1' });
     await jobService.idle();
@@ -210,7 +238,7 @@ describe('POST /jobs/:id/clarify (RF-9, US-11)', () => {
 
   // Un job que el agente ha pausado para preguntar (storyCheck dice que falta información).
   async function pausedJob() {
-    const context = setup({
+    const context = await setup({
       llmTexts: [notReady, '*** Test Cases ***\nTest 1'],
       config: { storyCheck: true },
     });
@@ -243,7 +271,7 @@ describe('POST /jobs/:id/clarify (RF-9, US-11)', () => {
   });
 
   it('con un id desconocido responde 404 job_not_found', async () => {
-    const { app } = setup();
+    const { app } = await setup();
 
     const response = await request(app).post('/jobs/no-existe/clarify').send({ answer });
 
@@ -252,7 +280,7 @@ describe('POST /jobs/:id/clarify (RF-9, US-11)', () => {
   });
 
   it('si el job no está esperando una respuesta responde 409 not_awaiting_clarification', async () => {
-    const { app, jobService } = setup();
+    const { app, jobService } = await setup();
     const created = await request(app).post('/jobs').send({ issueKey: 'YAQ-1' });
     await jobService.idle(); // este job termina en done sin preguntar nada
 
