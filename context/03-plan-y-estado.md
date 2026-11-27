@@ -17,8 +17,8 @@
 | 2 | Integración Jira (API REST; el MCP de Atlassian no funcionó con token de API, D-45) + manejo 404/403 | 1 | ✅ hecho (versión mínima, D-43 y D-45; falta subir la PR) |
 | 3 | API + PostgreSQL (jobs, intentos, clarificaciones) + tests de integración | 2 | ✅ hecho (3a a 3d; D-46 y D-47) |
 | 4 | Frontend: Creación, Control, chat de clarificación, Administración | 2–3 | 🔄 en curso (rama `feature/rnf-4-frontend`; falta Administración, D-48 a D-52) |
-| 5 | Auth (Atlassian OAuth) y roles | 1–2 | ✅ hecho (rama `feature/rnf-5-auth`, 2026-11-26; D-53 a D-61; falta subir la PR) |
-| 6 | CI/CD con GitHub Actions + calidad | 1–2 | ⬜ |
+| 5 | Auth (Atlassian OAuth) y roles | 1–2 | ✅ hecho (PR 12 y 13 fusionadas en `main`, 2026-11-27; D-53 a D-61) |
+| 6 | CI/CD con GitHub Actions + calidad | 1–2 | 🔄 CI hecho en la rama `feature/rnf-6-admin-ci` (D-63); falta verlo pasar en GitHub, hacerlo obligatorio en `main` y el CD (Fase 7) |
 | 7 | Infraestructura AWS con Terraform (6 bloques: ECR → RDS → Secrets → IAM → ECS/Fargate → CD) | 3–4 | ⬜ |
 | 8 | RAG (opcional según tiempo) | — | ⬜ |
 | 9 | Memoria del TFM (transversal, en paralelo a todas) | — | 🔁 continuo |
@@ -45,6 +45,10 @@ Al terminar la Fase 4 hay un walking skeleton usable desde el navegador: buen mo
 - **Hecho**: login con Atlassian (OAuth 3LO, ámbito `read:me`) dentro de Express, sesión en cookie httpOnly con hash en Postgres, roles Admin / QA Controller / QA Executer con 403 real, `GET /admin/users` y `PATCH /admin/users/:id/role`, pantalla `/login`, `proxy.ts`, menú de usuario y ocultación por rol en la interfaz. Tests: 412 de backend (más integración con Postgres) y 70 de frontend, con typecheck y lint limpios.
 - **Probado a mano con Atlassian real**: login, `GET /auth/me`, 403 al crear un job y al listar usuarios con rol QA Executer, y 200 en `/admin/users` con rol Admin.
 - **Sin hacer**: pantalla de Administración en el frontend (US-12), edición y re-ejecución de tests (US-02.2 y 02.6), y sin commitear aún. `ADMIN_EMAILS` es del despliegue (D-60); el SaaS multiempresa queda para la Fase 10.
+
+## Administración y CI (rama `feature/rnf-6-admin-ci`, 2026-11-27)
+- **Pantalla `/admin`** (US-12, versión simple): lista de usuarios y selector de rol; el selector de tu propia fila está bloqueado; enlace visible solo con `admin:manage`. 83 tests de frontend, typecheck, lint y `next build` en verde.
+- **CI** (`.github/workflows/ci.yml`): backend (lint, tipos, tests), integración con Postgres 17 y frontend (lint, tipos, tests, build). Sin hacer: ver la primera ejecución en GitHub y marcarla como comprobación obligatoria de `main` (ajuste del repositorio, lo hace Lujan).
 
 ## Ideas para después (anotadas 2026-11-25)
 - **Vincular el login con Jira**: pedir en el OAuth 3LO también `read:jira-work` y `offline_access` para leer las US con el token de cada usuario (cada persona vería solo sus US) en vez del token de API compartido de la D-45. Hoy el login solo pide `read:me`. Decidir tras el MVP.
