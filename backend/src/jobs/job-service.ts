@@ -1,7 +1,8 @@
 import { Command } from '@langchain/langgraph';
 import type { buildGraph } from '../agent/graph.js';
-import type { JiraPort } from '../agent/ports.js';
+import { RunnerUnavailableError, type JiraPort } from '../agent/ports.js';
 import type { AgentStateType } from '../agent/state.js';
+import { LlmError, type LlmErrorKind } from '../llm/openai-llm.js';
 import { storyToPrompt } from '../jira/story-text.js';
 import { JobError } from './errors.js';
 import type { Job, JobPatch, JobSummary } from './job.js';
@@ -19,6 +20,24 @@ export interface JobServiceDeps {
 
 // Mensaje fijo y limpio (US-04.6): el detalle del error va a `onError`, nunca al usuario.
 const INTERNAL_ERROR_REASON = 'The agent stopped because of an internal error.';
+
+// Motivos claros según qué falló en OpenAI. Si no es un error conocido, el mensaje genérico.
+const LLM_REASONS: Record<LlmErrorKind, string> = {
+  auth: 'OpenAI rejected the API key. Check OPENAI_API_KEY and restart the server.',
+  quota: 'OpenAI credit exhausted. Add credit and try again.',
+  rate_limit: 'OpenAI rate limit reached. Try again in a moment.',
+  network: 'Could not reach OpenAI. Check the connection and try again.',
+  unknown: 'The agent stopped because of an internal error.',
+};
+
+function failureReasonFor(error: unknown): string {
+  if (error instanceof RunnerUnavailableError) return DOCKER_REASON;
+  if (error instanceof LlmError) return LLM_REASONS[error.kind];
+  return INTERNAL_ERROR_REASON;
+}
+
+const DOCKER_REASON = 'Docker is not available. Start Docker and try again.';
+const INTERRUPTED_REASON = 'The server restarted while the agent was running.';
 
 const notAwaiting = (): JobError =>
   new JobError('not_awaiting_clarification', 'The job is not waiting for an answer.');
@@ -97,6 +116,12 @@ export class JobService {
     }
   }
 
+  // Para llamar al arrancar el servidor: los jobs que estaban en marcha cuando se apagó ya no los
+  // ejecuta nadie, así que se marcan como fallidos en vez de quedarse "en marcha" para siempre.
+  recoverInterrupted(): Promise<number> {
+    return this.deps.repository.failInterrupted(INTERRUPTED_REASON);
+  }
+
   /** Espera a que terminen (o se pausen) los jobs en curso. Útil en tests y al apagar el servidor. */
   async idle(): Promise<void> {
     await Promise.all(this.running);
@@ -127,7 +152,10 @@ export class JobService {
     } catch (error) {
       onError?.(error);
       await repository
-        .update(jobId, { status: 'fail', failureReason: INTERNAL_ERROR_REASON })
+        .update(jobId, {
+          status: 'fail',
+          failureReason: failureReasonFor(error),
+        })
         .catch((updateError: unknown) => onError?.(updateError));
     }
   }

@@ -48,6 +48,17 @@ export class InMemoryJobRepository implements JobRepository {
     return structuredClone(updated);
   }
 
+  async failInterrupted(reason: string): Promise<number> {
+    let count = 0;
+    for (const [id, job] of this.jobs) {
+      if (job.status === 'generating' || job.status === 'running') {
+        this.jobs.set(id, { ...job, status: 'fail', failureReason: reason });
+        count++;
+      }
+    }
+    return count;
+  }
+
   async list(): Promise<JobSummary[]> {
     // `reverse` antes de ordenar: si dos jobs tienen la misma fecha, el creado después va primero.
     return [...this.jobs.values()]

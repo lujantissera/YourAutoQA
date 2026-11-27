@@ -339,13 +339,13 @@ Las 17 historias cubren los 9 requisitos funcionales y los 8 no funcionales; la 
 | US-02 | Ver y usar solo lo que mi rol permite | RF-2 | Must | 5 | Pendiente |
 | US-03 | Buscar una US de Jira por su ID | RF-3 | Must | 2 | Parcial 2/6 |
 | US-04 | Error claro si la US no existe o sin permisos | RF-3 | Must | 2 | Parcial 3/6 |
-| US-05 | Generar un test `.robot` desde una US | RF-4 | Must | 1 | Parcial 4/6 |
+| US-05 | Generar un test `.robot` desde una US | RF-4 | Must | 1 | Parcial 5/6 |
 | US-06 | Ejecutar el test en un entorno aislado | RF-5, RNF-2 | Must | 1 | Parcial 6/6 |
 | US-07 | Corregir el test automáticamente si falla | RF-6, RNF-1, RNF-4 | Must | 1 | Parcial 6/7 |
 | US-08 | Ver el estado de mis jobs en tiempo real | RF-7, RNF-3 | Must | 3 y 4 | Pendiente |
 | US-09 | Ver el detalle de cada intento y sus logs | RF-7, RNF-4 | Should | 4 | Pendiente |
-| US-10 | El agente pregunta cuando falta información | RF-9, RNF-1 | Must | 1 | Parcial 6/7 |
-| US-11 | Responder por chat y continuar | RF-9, RF-7 | Must | 3 y 4 | Parcial 1/9 |
+| US-10 | El agente pregunta cuando falta información | RF-9, RNF-1 | Must | 1 | Hecho en código 7/7 |
+| US-11 | Responder por chat y continuar | RF-9, RF-7 | Must | 3 y 4 | Parcial 4/9 |
 | US-12 | Administrar usuarios, roles y límites | RF-2, RF-7, RNF-1, RNF-2, RNF-6 | Should | 4 y 5 | Pendiente |
 | US-13 | Reutilizar keywords y ejemplos (RAG) | RF-8 | Could | 8 | Pendiente |
 | TS-01 | Proteger frente a entradas no confiables | Seguridad (nuevo) | Must | 1 a 7 | Parcial |
@@ -359,11 +359,11 @@ Las 17 historias cubren los 9 requisitos funcionales y los 8 no funcionales; la 
 
 - **US-03** (Fase 2, 2026-11-04; cubiertos 1 y 4): el 1 lo cubren `RestJira`, `adfToText` y `splitAcceptanceCriteria`, con respuestas reales de Jira; el 4 lo cubre `parseIssueKey` (clave inválida rechazada sin llamar a Jira). Del 3 solo está la parte de datos (`acceptanceCriteria: null`): falta el aviso al usuario (Fases 3 y 4). Faltan el 2 y el 5 (interfaz, Fase 4) y el 6 (permisos del usuario autenticado, Fase 5; hoy la lectura usa el token de desarrollo). Campos leídos hoy: solo `summary` y `description`.
 - **US-04** (Fase 2, 2026-11-04; cubiertos 1, 2 y 6): 404 es `not_found`, 401/403 son `forbidden` y los mensajes no incluyen token, `cloudId` ni URL (hay un test). Matiz de D-45: Jira responde 404 también cuando no puedes ver la incidencia, así que en la práctica "no existe" y "sin permiso" llegan igual; `forbidden` queda para credenciales rechazadas o falta de permiso de la aplicación. Del 5 está el mapeo (5xx, 429, red y timeout son `unavailable`), pero falta registrarlo en el log del servidor (Fase 3). Faltan el 3 y el 4 (interfaz y API, Fases 3 y 4).
-- **US-05** (Fase 3b, 2026-11-15; cubiertos 1, 2, 3 y 5): el 1 y el 5 ya se cumplen con `POST /jobs` (id UUID) y la tabla `job_attempts` (el `.robot` de cada intento, por job), probado con el contrato del repositorio y con una ejecución real. Faltan el 4 (un fallo del LLM hoy deja el job en `fail` con un motivo genérico, "internal error"; el motivo comprensible llega en 3d) y el 6 (solo se guardan los tokens totales por job, no por llamada).
+- **US-05** (Fase 3b, 2026-11-15; cubiertos 1, 2, 3 y 5): el 1 y el 5 ya se cumplen con `POST /jobs` (id UUID) y la tabla `job_attempts` (el `.robot` de cada intento, por job), probado con el contrato del repositorio y con una ejecución real. **Fase 3d (2026-11-21), cubierto también el 4:** un fallo del LLM deja el job en `fail` con un motivo comprensible según el tipo (clave rechazada, crédito agotado, límite de uso, sin conexión), y Docker apagado también. Falta el 6 (solo se guardan los tokens totales por job, no por llamada).
 - **US-06** (cubiertos 1 a 6): solo falta el CI de la PR de la Definition of Done (Fase 6). Matiz del 1: los logs se recortan a 200.000 caracteres.
 - **US-07** (Fase 3b, 2026-11-15; cubiertos 1, 2, 3, 4, 6 y 7): el 4 ya se guarda en Postgres (número, `.robot`, resultado, logs y tipo de fallo de cada intento). Falta el 5: la API ya muestra el estado y los intentos casi en tiempo real (`GET /jobs/:id`), pero el estado es grueso (`generating`, `running`...) y no indica "intento 2/5" mientras se ejecuta.
-- **US-10** (cubiertos 1, 2, 3, 4, 5, 7): falta el 6 (conservar el estado en pausa): hoy es `MemorySaver` y se pierde al reiniciar; pasa a Postgres en la Fase 3 (D-32).
-- **US-11** (cubierto el 3, reinicio del contador): el resto es API y chat (Fases 3 y 4).
+- **US-10** (Fase 3c, 2026-11-21; cubiertos los 7): el 6 (conservar el estado en pausa) ya se cumple con `PostgresSaver` (D-32), probado con un test de integración que reanuda el job tras "reiniciar" el servidor y con una prueba real (job pausado, API reiniciada, `POST /jobs/:id/clarify` → `done`). Sigue `Hecho en código`, no `Hecho`, por el CI de la PR (Fase 6).
+- **US-11** (Fase 3c, 2026-11-21; cubiertos 3, 5, 6 y 7): el 3 es el reinicio del contador; el 5 (job que no espera respuesta se rechaza), el 6 (respuesta vacía o de más de 2.000 caracteres) y el 7 (doble envío: solo se procesa uno, en un solo servidor) los cubre `POST /jobs/:id/clarify`. Del 2 está la mitad: la respuesta llega al agente, pero aún no se guarda como mensaje de conversación. El 4 queda sin comprobar con un test propio. Faltan el 1 (chat, Fase 4), el 8 (roles, Fase 5) y el 9 (`clarification_messages`).
 - **TS-01**: hay barrera en el prompt (datos entre etiquetas), pero sin una prueba adversarial real; el aislamiento del runner funciona, con el hueco de red de la decisión abierta de `04-decisiones.md`. Los criterios 3 a 5 son de fases posteriores.
 - **TS-02** (Fase 3b, 2026-11-15; cubiertos 2, 3 y 4): el consumo real medido está muy por debajo de la estimación (unos 600 a 5.000 tokens frente a 15.000-25.000, ver `03-plan-y-estado.md`), al agotar el límite el job queda en `fail` con motivo, y `GET /jobs/:id` devuelve los tokens totales guardados en Postgres. Falta el 1: se guarda el total por job, no el modelo ni los tokens de entrada y salida por llamada e intento.
 - **TS-03**: hecha en la Fase 0 (el pre-commit bloquea un `console.log`).

@@ -161,6 +161,15 @@ export class PostgresJobRepository implements JobRepository {
     return this.mustGet(id);
   }
 
+  async failInterrupted(reason: string): Promise<number> {
+    const result = await this.pool.query(
+      `UPDATE jobs SET status = 'fail', failure_reason = $1
+        WHERE status IN ('generating', 'running')`,
+      [reason],
+    );
+    return result.rowCount ?? 0;
+  }
+
   async list(): Promise<JobSummary[]> {
     // Sin traer los intentos (pesan mucho): solo se cuentan con una subconsulta. `count` devuelve
     // un bigint que `pg` entrega como texto, por eso el `::int`.

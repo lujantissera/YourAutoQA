@@ -29,3 +29,10 @@ export function isPassingRun(exitCode: number | null, timedOut: boolean, logs: s
   const summary = parseRobotSummary(logs);
   return summary !== null && summary.passed > 0 && summary.failed === 0 && summary.skipped === 0;
 }
+
+// `docker run` sale con 125 cuando falla Docker mismo (daemon apagado, opción inválida...), no el
+// test. Robot usa 0-250 (un test fallido = 1), así que con un solo test no se confunden. Con timeout
+// el contenedor se mata a propósito y es un FAIL normal.
+export function dockerItselfFailed(exitCode: number | null, timedOut: boolean): boolean {
+  return exitCode === 125 && !timedOut;
+}
