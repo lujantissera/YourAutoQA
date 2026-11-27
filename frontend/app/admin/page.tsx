@@ -6,7 +6,9 @@ export default function AdminPage() {
       <div className="page-head">
         <h1>Administración</h1>
         <p className="page-sub">
-          Quien entra por primera vez es QA Executer (solo lectura). Desde aquí le subes el rol.
+          Quien entra por primera vez queda sin acceso hasta que le asignes un rol. Aparece arriba,
+          en «Sin acceso (pendiente)». También puedes devolver a alguien a ese estado para quitarle
+          el acceso.
         </p>
       </div>
       <AdminUsers />
