@@ -7,8 +7,8 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
 
   return (
     <main className="page">
-      <Link href="/" className="back-link">
-        <span aria-hidden="true">←</span> Volver a los jobs
+      <Link href="/jobs" className="back-link">
+        <span aria-hidden="true">←</span> Volver al control de tests
       </Link>
       <JobDetailView jobId={id} />
     </main>
